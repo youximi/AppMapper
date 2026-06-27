@@ -1,0 +1,16 @@
+{
+  "type": "active_app",
+  "deviceId": "android-8f3a2c1b",
+  "sequence": 42,
+  "app": {
+    "appId": "android:com.tencent.mm",
+    "packageName": "com.tencent.mm",
+    "displayName": "微信",
+    "iconPngBase64": "iVBORw0KGgoAAAANSUhEUgAA..."
+  },
+  "state": {
+    "screenOn": true,
+    "locked": false
+  },
+  "timestamp": 1782530001000
+}

@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AppMapper</string>
+    <string name="foreground_service_channel">AppMapper Sync</string>
+</resources>

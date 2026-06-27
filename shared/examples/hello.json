@@ -1,0 +1,10 @@
+{
+  "type": "hello",
+  "protocolVersion": 1,
+  "pairingCode": "123456",
+  "deviceId": "android-8f3a2c1b",
+  "deviceName": "Pixel 8",
+  "androidVersion": 15,
+  "appVersion": "0.1.0",
+  "timestamp": 1782530000000
+}
