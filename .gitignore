@@ -1,7 +1,11 @@
 .gradle/
 build/
 out/
-.idea/
+.idea/*
+!.idea/
+!.idea/.gitignore
+!.idea/gradle.xml
+!.idea/misc.xml
 *.iml
 local.properties
 .codebuddy

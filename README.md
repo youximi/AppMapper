@@ -48,7 +48,7 @@ Android 端可以直接扫码，也可以手动输入 IP、端口、验证码连
 
 ## 前置环境
 
-- **Android 客户端**：JDK 17、Android SDK（API 33+）、Android Studio（或直接用项目自带的 Gradle Wrapper）。
+- **Android 客户端**：JDK 17/21、Android SDK Platform 37、Android Studio（或直接用项目自带的 Gradle Wrapper）。
 - **Windows 总控端**：.NET 8 SDK。
 - **Windows 映射端**：Visual Studio Build Tools，需勾选"使用 C++ 的桌面开发"和 Windows SDK。
 
@@ -56,9 +56,13 @@ Android 端可以直接扫码，也可以手动输入 IP、端口、验证码连
 
 ### Android 客户端
 
+标准构建方式：
+
 ```powershell
-gradle :androidApp:app:assembleDebug
+.\gradlew.bat :androidApp:app:assembleDebug
 ```
+
+Windows 下 `gradlew.bat` 会优先使用 JDK 17/21；如果系统默认 JDK 过新，会自动尝试使用 Android Studio 自带的 JBR。
 
 ### Windows 总控端
 
