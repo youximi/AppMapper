@@ -106,7 +106,7 @@ jobs:
 
       - name: Install Android SDK packages
         run: |
-          sdkmanager "platforms;android-37" "build-tools;36.1.0"
+          sdkmanager "platforms;android-35"
 
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4

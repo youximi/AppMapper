@@ -24,8 +24,7 @@ val hasReleaseSigning = listOf(
 
 android {
     namespace = "dev.youximi.appmapper"
-    compileSdk = 37
-    buildToolsVersion = "36.1.0"
+    compileSdk = 35
 
     signingConfigs {
         if (hasReleaseSigning) {
