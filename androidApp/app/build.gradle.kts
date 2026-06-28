@@ -4,17 +4,46 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+val appVersionCode = providers.gradleProperty("appVersionCode")
+    .map(String::toInt)
+    .orElse(1)
+
+val appVersionName = providers.gradleProperty("appVersionName")
+    .orElse("0.1.0")
+
+val releaseKeystoreFile = providers.environmentVariable("APPMAPPER_KEYSTORE_FILE").orNull
+val releaseKeystorePassword = providers.environmentVariable("APPMAPPER_KEYSTORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("APPMAPPER_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("APPMAPPER_KEY_PASSWORD").orNull
+val hasReleaseSigning = listOf(
+    releaseKeystoreFile,
+    releaseKeystorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
+
 android {
     namespace = "dev.youximi.appmapper"
     compileSdk = 37
     buildToolsVersion = "36.1.0"
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = file(releaseKeystoreFile!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "dev.youximi.appmapper"
         minSdk = 33
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode.get()
+        versionName = appVersionName.get()
     }
 
     buildFeatures {
@@ -29,6 +58,14 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+
+    buildTypes {
+        release {
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
     }
 }
 

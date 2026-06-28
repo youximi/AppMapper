@@ -1,5 +1,6 @@
 package dev.youximi.appmapper.data
 
+import dev.youximi.appmapper.BuildConfig
 import org.json.JSONObject
 
 const val ProtocolVersion = 1
@@ -25,7 +26,7 @@ fun helloJson(deviceId: String, deviceName: String, pairingCode: String): JSONOb
         .put("deviceId", deviceId)
         .put("deviceName", deviceName)
         .put("androidVersion", android.os.Build.VERSION.SDK_INT)
-        .put("appVersion", "0.1.0")
+        .put("appVersion", BuildConfig.VERSION_NAME)
         .put("timestamp", System.currentTimeMillis())
 
 fun activeAppJson(deviceId: String, sequence: Long, app: ActiveApp, screenOn: Boolean, locked: Boolean): JSONObject =

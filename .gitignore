@@ -1,5 +1,7 @@
 .gradle/
 build/
+dist/
+artifacts/
 out/
 .idea/*
 !.idea/
@@ -23,3 +25,4 @@ apps/
 
 *.log
 *.tmp
+release-notes.md

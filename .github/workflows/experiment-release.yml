@@ -1,0 +1,246 @@
+name: Experiment Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version name, for example 0.1.0. Falls back to Android default versionName."
+        required: false
+        type: string
+      codename:
+        description: "Release codename shown in the GitHub Release notes."
+        required: false
+        default: "Sunday"
+        type: string
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Experiment release
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release metadata
+        id: metadata
+        run: |
+          $inputVersion = "${{ inputs.version }}"
+          $refName = "${{ github.ref_name }}"
+
+          if ([string]::IsNullOrWhiteSpace($inputVersion)) {
+            if ("${{ github.ref_type }}" -eq "tag" -and $refName -match '^v(.+)$') {
+              $version = $Matches[1]
+            } else {
+              $versionLine = Select-String -Path "androidApp\app\build.gradle.kts" -Pattern 'orElse\("([^"]+)"\)' | Select-Object -First 1
+              if ($null -eq $versionLine) {
+                throw "Unable to infer version. Pass the workflow_dispatch version input."
+              }
+              $version = $versionLine.Matches[0].Groups[1].Value
+            }
+          } else {
+            $version = $inputVersion.Trim()
+            if ($version.StartsWith("v")) {
+              $version = $version.Substring(1)
+            }
+          }
+
+          $codename = "${{ inputs.codename }}"
+          if ([string]::IsNullOrWhiteSpace($codename)) {
+            $codename = "Sunday"
+          }
+
+          $buildNumber = "${{ github.run_number }}"
+          $buildKind = "Experiment_C"
+          $fullVersion = "Version.$version.$buildKind$buildNumber"
+          $releaseTag = $fullVersion
+          $releaseTitle = "Build $fullVersion"
+          $shortSha = git rev-parse --short HEAD
+
+          $branch = $refName
+          if ("${{ github.ref_type }}" -eq "tag") {
+            $containingBranch = git branch -r --contains HEAD |
+              ForEach-Object { $_.Trim() } |
+              Where-Object { $_ -and $_ -notmatch 'HEAD' } |
+              Select-Object -First 1
+
+            if (-not [string]::IsNullOrWhiteSpace($containingBranch)) {
+              $branch = $containingBranch -replace '^origin/', ''
+            }
+          }
+
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+          "BUILD_NUMBER=$buildNumber" >> $env:GITHUB_ENV
+          "BUILD_KIND=$buildKind" >> $env:GITHUB_ENV
+          "FULL_VERSION=$fullVersion" >> $env:GITHUB_ENV
+          "RELEASE_TAG=$releaseTag" >> $env:GITHUB_ENV
+          "RELEASE_TITLE=$releaseTitle" >> $env:GITHUB_ENV
+          "RELEASE_CODENAME=$codename" >> $env:GITHUB_ENV
+          "SHORT_SHA=$shortSha" >> $env:GITHUB_ENV
+          "SOURCE_BRANCH=$branch" >> $env:GITHUB_ENV
+
+          "app_version=$version" >> $env:GITHUB_OUTPUT
+          "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platforms;android-37" "build-tools;36.1.0"
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Check Android signing secrets
+        run: |
+          $requiredSecrets = @(
+            "APPMAPPER_KEYSTORE_BASE64",
+            "APPMAPPER_KEYSTORE_PASSWORD",
+            "APPMAPPER_KEY_ALIAS",
+            "APPMAPPER_KEY_PASSWORD"
+          )
+
+          foreach ($secretName in $requiredSecrets) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($secretName))) {
+              throw "Missing GitHub secret: $secretName"
+            }
+          }
+        env:
+          APPMAPPER_KEYSTORE_BASE64: ${{ secrets.APPMAPPER_KEYSTORE_BASE64 }}
+          APPMAPPER_KEYSTORE_PASSWORD: ${{ secrets.APPMAPPER_KEYSTORE_PASSWORD }}
+          APPMAPPER_KEY_ALIAS: ${{ secrets.APPMAPPER_KEY_ALIAS }}
+          APPMAPPER_KEY_PASSWORD: ${{ secrets.APPMAPPER_KEY_PASSWORD }}
+
+      - name: Decode Android release keystore
+        run: |
+          New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\appmapper-signing" | Out-Null
+          $keystorePath = "$env:RUNNER_TEMP\appmapper-signing\appmapper-release.jks"
+          [IO.File]::WriteAllBytes($keystorePath, [Convert]::FromBase64String($env:APPMAPPER_KEYSTORE_BASE64))
+          "APPMAPPER_KEYSTORE_FILE=$keystorePath" >> $env:GITHUB_ENV
+        env:
+          APPMAPPER_KEYSTORE_BASE64: ${{ secrets.APPMAPPER_KEYSTORE_BASE64 }}
+
+      - name: Build Android release APK
+        run: |
+          .\gradlew.bat :androidApp:app:assembleRelease `
+            "-PappVersionName=$env:APP_VERSION" `
+            "-PappVersionCode=$env:BUILD_NUMBER"
+        env:
+          APPMAPPER_KEYSTORE_PASSWORD: ${{ secrets.APPMAPPER_KEYSTORE_PASSWORD }}
+          APPMAPPER_KEY_ALIAS: ${{ secrets.APPMAPPER_KEY_ALIAS }}
+          APPMAPPER_KEY_PASSWORD: ${{ secrets.APPMAPPER_KEY_PASSWORD }}
+
+      - name: Build Windows mapper template
+        run: |
+          msbuild windowsApp\mapper\AppMapper.Mapper.vcxproj `
+            /p:Configuration=Release `
+            /p:Platform=x64
+
+      - name: Publish Windows controller
+        run: |
+          dotnet publish windowsApp\controller\AppMapper.Controller.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -o dist\windows
+
+          Copy-Item windowsApp\mapper\bin\Release\mapper-template.exe dist\windows\
+
+      - name: Package release assets
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+
+          $apk = Get-ChildItem "androidApp\app\build\outputs\apk\release" -Filter "*.apk" |
+            Where-Object { $_.Name -notmatch "unsigned" } |
+            Select-Object -First 1
+
+          if ($null -eq $apk) {
+            throw "Signed release APK not found."
+          }
+
+          Copy-Item $apk.FullName "artifacts\appmapper.android.$env:APP_VERSION.$env:BUILD_NUMBER.apk"
+          Compress-Archive -Path "dist\windows\*" -DestinationPath "artifacts\appmapper.windows.$env:APP_VERSION.$env:BUILD_NUMBER.zip" -Force
+
+      - name: Generate release notes
+        run: |
+          $previousTag = git for-each-ref `
+            --sort=-creatordate `
+            --format='%(refname:short)' `
+            "refs/tags/Version.*.Experiment_C*" |
+            Where-Object { $_ -ne $env:RELEASE_TAG } |
+            Select-Object -First 1
+
+          if ([string]::IsNullOrWhiteSpace($previousTag)) {
+            $changes = "No previous Experiment release found."
+            $comparison = "Initial Experiment release"
+          } else {
+            $changes = git log "$previousTag..HEAD" --pretty=format:'%h: %s (%an)%n%b'
+            if ([string]::IsNullOrWhiteSpace($changes)) {
+              $changes = "No commits since $previousTag."
+            }
+
+            $previousSha = git rev-parse --short $previousTag
+            $compareUrl = "${{ github.server_url }}/${{ github.repository }}/compare/$previousTag...$env:GITHUB_SHA"
+            $comparison = "[$previousSha...$env:SHORT_SHA]($compareUrl)"
+          }
+
+          $notes = @(
+            "Experiment Build",
+            "",
+            "Codename: $env:RELEASE_CODENAME",
+            "Version: $env:FULL_VERSION",
+            "Latest Commit: $env:SHORT_SHA",
+            "Branch: $env:SOURCE_BRANCH",
+            "",
+            "Changes since last Experiment release",
+            ""
+          )
+
+          $notes += $changes -split "`r?`n"
+          $notes += ""
+          $notes += "Full Comparison: $comparison"
+
+          Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: appmapper-${{ steps.metadata.outputs.app_version }}-${{ steps.metadata.outputs.build_number }}
+          path: artifacts/*
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $assets = Get-ChildItem artifacts -File | Select-Object -ExpandProperty FullName
+
+          gh release create "$env:RELEASE_TAG" $assets `
+            --title "$env:RELEASE_TITLE" `
+            --notes-file release-notes.md `
+            --prerelease `
+            --target "$env:GITHUB_SHA"
