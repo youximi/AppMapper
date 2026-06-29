@@ -1,4 +1,4 @@
-name: Experiment Release
+name: CI Build
 
 on:
   workflow_dispatch:
@@ -13,15 +13,15 @@ on:
         default: "Sunday"
         type: string
   push:
-    tags:
-      - "v*"
+    branches:
+      - "**"
 
 permissions:
   contents: write
 
 jobs:
   build:
-    name: Build Experiment release
+    name: Build and Release
     runs-on: windows-latest
 
     defaults:
@@ -39,9 +39,11 @@ jobs:
         run: |
           $inputVersion = "${{ inputs.version }}"
           $refName = "${{ github.ref_name }}"
+          $refType = "${{ github.ref_type }}"
 
+          # --- Version resolution ---
           if ([string]::IsNullOrWhiteSpace($inputVersion)) {
-            if ("${{ github.ref_type }}" -eq "tag" -and $refName -match '^v(.+)$') {
+            if ($refType -eq "tag" -and $refName -match '^v(.+)$') {
               $version = $Matches[1]
             } else {
               $versionLine = Select-String -Path "androidApp\app\build.gradle.kts" -Pattern 'orElse\("([^"]+)"\)' | Select-Object -First 1
@@ -57,20 +59,32 @@ jobs:
             }
           }
 
+          # --- Codename ---
           $codename = "${{ inputs.codename }}"
           if ([string]::IsNullOrWhiteSpace($codename)) {
             $codename = "Sunday"
           }
 
+          # --- Build kind & prerelease flag (main = formal, others = pre-release) ---
           $buildNumber = "${{ github.run_number }}"
-          $buildKind = "Experiment_C"
+          $isMainBranch = ($refName -eq "main" -or $refName -eq "master")
+
+          if ($isMainBranch) {
+            $buildKind = "Release"
+            $isPrerelease = "false"
+          } else {
+            $buildKind = "Experiment_C"
+            $isPrerelease = "true"
+          }
+
           $fullVersion = "Version.$version.$buildKind$buildNumber"
           $releaseTag = $fullVersion
           $releaseTitle = "Build $fullVersion"
           $shortSha = git rev-parse --short HEAD
 
+          # --- Branch detection ---
           $branch = $refName
-          if ("${{ github.ref_type }}" -eq "tag") {
+          if ($refType -eq "tag") {
             $containingBranch = git branch -r --contains HEAD |
               ForEach-Object { $_.Trim() } |
               Where-Object { $_ -and $_ -notmatch 'HEAD' } |
@@ -81,6 +95,7 @@ jobs:
             }
           }
 
+          # --- Export environment variables ---
           "APP_VERSION=$version" >> $env:GITHUB_ENV
           "BUILD_NUMBER=$buildNumber" >> $env:GITHUB_ENV
           "BUILD_KIND=$buildKind" >> $env:GITHUB_ENV
@@ -90,9 +105,12 @@ jobs:
           "RELEASE_CODENAME=$codename" >> $env:GITHUB_ENV
           "SHORT_SHA=$shortSha" >> $env:GITHUB_ENV
           "SOURCE_BRANCH=$branch" >> $env:GITHUB_ENV
+          "IS_PRERELEASE=$isPrerelease" >> $env:GITHUB_ENV
 
+          # --- Step outputs ---
           "app_version=$version" >> $env:GITHUB_OUTPUT
           "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
+          "is_prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -188,16 +206,17 @@ jobs:
 
       - name: Generate release notes
         run: |
+          # Look for any previous Version.* tag (covers both Release and Experiment_C kinds)
           $previousTag = git for-each-ref `
             --sort=-creatordate `
             --format='%(refname:short)' `
-            "refs/tags/Version.*.Experiment_C*" |
+            "refs/tags/Version.*" |
             Where-Object { $_ -ne $env:RELEASE_TAG } |
             Select-Object -First 1
 
           if ([string]::IsNullOrWhiteSpace($previousTag)) {
-            $changes = "No previous Experiment release found."
-            $comparison = "Initial Experiment release"
+            $changes = "No previous build found."
+            $comparison = "Initial build"
           } else {
             $changes = git log "$previousTag..HEAD" --pretty=format:'%h: %s (%an)%n%b'
             if ([string]::IsNullOrWhiteSpace($changes)) {
@@ -209,15 +228,17 @@ jobs:
             $comparison = "[$previousSha...$env:SHORT_SHA]($compareUrl)"
           }
 
+          $releaseType = if ($env:IS_PRERELEASE -eq "true") { "Experiment Build" } else { "Release Build" }
+
           $notes = @(
-            "Experiment Build",
+            $releaseType,
             "",
             "Codename: $env:RELEASE_CODENAME",
             "Version: $env:FULL_VERSION",
             "Latest Commit: $env:SHORT_SHA",
             "Branch: $env:SOURCE_BRANCH",
             "",
-            "Changes since last Experiment release",
+            "Changes since last build",
             ""
           )
 
@@ -239,8 +260,15 @@ jobs:
         run: |
           $assets = Get-ChildItem artifacts -File | Select-Object -ExpandProperty FullName
 
-          gh release create "$env:RELEASE_TAG" $assets `
-            --title "$env:RELEASE_TITLE" `
-            --notes-file release-notes.md `
-            --prerelease `
-            --target "$env:GITHUB_SHA"
+          if ($env:IS_PRERELEASE -eq "true") {
+            gh release create "$env:RELEASE_TAG" $assets `
+              --title "$env:RELEASE_TITLE" `
+              --notes-file release-notes.md `
+              --prerelease `
+              --target "$env:GITHUB_SHA"
+          } else {
+            gh release create "$env:RELEASE_TAG" $assets `
+              --title "$env:RELEASE_TITLE" `
+              --notes-file release-notes.md `
+              --target "$env:GITHUB_SHA"
+          }
