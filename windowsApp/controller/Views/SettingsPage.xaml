@@ -1,0 +1,46 @@
+<Page x:Class="AppMapper.Controller.Views.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="设置">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="24">
+            <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="20">
+                <StackPanel>
+                    <!-- 端口 -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                        <TextBlock Text="端口" VerticalAlignment="Center" Width="160" />
+                        <ui:TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}" Width="120" />
+                        <ui:Button Content="重启服务" Command="{Binding RestartServerCommand}" Margin="12,0,0,0" />
+                    </StackPanel>
+
+                    <Separator Background="{DynamicResource ControlStrokeColorDefaultBrush}" Margin="0,0,0,16" />
+
+                    <!-- 关闭映射窗口后自动重开 -->
+                    <ui:ToggleSwitch Content="用户关闭映射窗口后自动重开"
+                                     IsChecked="{Binding RelaunchMapperWhenClosed, Mode=TwoWay}"
+                                     Margin="0,0,0,12" />
+
+                    <!-- 关闭到托盘 -->
+                    <ui:ToggleSwitch Content="点窗口关闭按钮时缩到托盘（不退出）"
+                                     IsChecked="{Binding CloseToTray, Mode=TwoWay}"
+                                     Margin="0,0,0,12" />
+
+                    <!-- 显示侧栏文字 -->
+                    <ui:ToggleSwitch Content="显示侧栏文字（折叠为纯图标）"
+                                     IsChecked="{Binding PaneOpen, Mode=TwoWay}"
+                                     Margin="0,0,0,16" />
+
+                    <Separator Background="{DynamicResource ControlStrokeColorDefaultBrush}" Margin="0,0,0,16" />
+
+                    <!-- 打开 apps 目录 -->
+                    <ui:Button Content="打开 apps 目录" Command="{Binding OpenAppsDirectoryCommand}" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

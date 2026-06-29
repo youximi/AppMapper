@@ -108,6 +108,6 @@ Android 客户端需要以下权限，全部用于核心功能：
 
 ## License
 
-本项目采用 [GPL-3.0-only](./LICENSE) 协议。
+本项目采用 [GPL-3.0-only](./LICENSE) 协议。所用第三方组件（WPF-UI、QRCoder）的许可声明见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
 
 

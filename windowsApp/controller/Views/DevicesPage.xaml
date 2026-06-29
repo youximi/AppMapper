@@ -1,0 +1,31 @@
+<Page x:Class="AppMapper.Controller.Views.DevicesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="设备">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="设备" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                BorderThickness="1" CornerRadius="8">
+            <ListView ItemsSource="{Binding Devices}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="设备" DisplayMemberBinding="{Binding DeviceName}" Width="160" />
+                        <GridViewColumn Header="ID" DisplayMemberBinding="{Binding DeviceId}" Width="200" />
+                        <GridViewColumn Header="状态" DisplayMemberBinding="{Binding State}" Width="160" />
+                        <GridViewColumn Header="当前 App" DisplayMemberBinding="{Binding CurrentApp}" Width="180" />
+                        <GridViewColumn Header="最后消息" DisplayMemberBinding="{Binding LastSeen, StringFormat=\{0:HH:mm:ss\}}" Width="120" />
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </Border>
+    </Grid>
+</Page>

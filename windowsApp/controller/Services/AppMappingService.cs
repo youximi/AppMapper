@@ -3,19 +3,22 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using AppMapper.Controller.Core;
 using AppMapper.Controller.Models;
 
 namespace AppMapper.Controller.Services;
 
 public sealed class AppMappingService
 {
+    private readonly LogService log;
     private readonly string appRoot;
     private readonly string templateExe;
     private Process? currentProcess;
     private string? currentAppId;
 
-    public AppMappingService()
+    public AppMappingService(LogService log)
     {
+        this.log = log;
         var baseDir = AppContext.BaseDirectory;
         appRoot = Path.Combine(baseDir, "apps");
         templateExe = Path.Combine(baseDir, "mapper-template.exe");
@@ -25,8 +28,6 @@ public sealed class AppMappingService
     public string AppsDirectory => appRoot;
 
     public bool RelaunchWhenClosed { get; set; } = true;
-
-    public event Action<string>? Log;
 
     public void Show(AppInfo app)
     {
@@ -53,7 +54,7 @@ public sealed class AppMappingService
             {
                 if (RelaunchWhenClosed && currentAppId == app.AppId)
                 {
-                    Log?.Invoke($"Mapper closed by user; relaunching {app.DisplayName}.");
+                    log.Info($"Mapper closed by user; relaunching {app.DisplayName}.");
                     Show(app);
                 }
             };
@@ -61,7 +62,7 @@ public sealed class AppMappingService
             ActivateMapperWindow(currentProcess);
         }
 
-        Log?.Invoke($"Showing mapper for {app.DisplayName}.");
+        log.Info($"Showing mapper for {app.DisplayName}.");
     }
 
     public void CloseCurrent()

@@ -26,3 +26,6 @@ apps/
 *.log
 *.tmp
 release-notes.md
+
+windowsApp/**/logs/
+windowsApp/**/config/settings.json

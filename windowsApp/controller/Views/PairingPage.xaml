@@ -1,0 +1,31 @@
+<Page x:Class="AppMapper.Controller.Views.PairingPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="配对"
+      ScrollViewer.CanContentScroll="True">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0">
+        <StackPanel Margin="24,24,24,24">
+            <TextBlock Text="配对" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="24">
+                <StackPanel>
+                    <TextBlock Text="本机地址" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding ServerAddress}" FontSize="16" FontWeight="SemiBold" Margin="0,4,0,16" />
+
+                    <TextBlock Text="配对验证码（每 60 秒刷新）" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding PairingCode}" FontSize="48" FontWeight="Bold" Margin="0,4,0,16" />
+
+                    <Border Background="White" CornerRadius="6" Padding="8" HorizontalAlignment="Left">
+                        <Image Source="{Binding QrImage}" Width="220" Height="220" Stretch="Uniform" />
+                    </Border>
+
+                    <TextBlock Text="配对链接" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,16,0,4" />
+                    <TextBlock Text="{Binding PairingUri}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontFamily="Consolas" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

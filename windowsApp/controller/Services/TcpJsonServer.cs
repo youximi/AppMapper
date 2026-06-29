@@ -3,17 +3,20 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using AppMapper.Controller.Core;
 using AppMapper.Controller.Models;
 
 namespace AppMapper.Controller.Services;
 
 public sealed class TcpJsonServer
 {
+    private readonly LogService log;
     private TcpListener? listener;
     private CancellationTokenSource? cancellation;
     private int activeClients;
 
-    public event Action<string>? Log;
+    public TcpJsonServer(LogService log) => this.log = log;
+
     public event Action<string, string, string>? HelloReceived;
     public event Action<string, AppInfo, long>? ActiveAppReceived;
     public event Action<string, string, long>? IdleReceived;
@@ -28,7 +31,7 @@ public sealed class TcpJsonServer
         listener = new TcpListener(IPAddress.Any, port);
         listener.Start();
         _ = AcceptLoop(validateCode, maxDevices, cancellation.Token);
-        Log?.Invoke($"TCP server started on port {port}.");
+        log.Info($"TCP server started on port {port}.");
     }
 
     public void Stop()
@@ -53,7 +56,7 @@ public sealed class TcpJsonServer
             }
             catch (Exception ex)
             {
-                Log?.Invoke($"Accept failed: {ex.Message}");
+                log.Warn($"Accept failed: {ex.Message}");
             }
         }
     }
@@ -111,7 +114,7 @@ public sealed class TcpJsonServer
         }
         catch (Exception ex)
         {
-            Log?.Invoke($"Client error: {ex.Message}");
+            log.Warn($"Client error: {ex.Message}");
         }
         finally
         {
