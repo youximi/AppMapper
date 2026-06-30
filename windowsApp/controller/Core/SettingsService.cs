@@ -56,6 +56,10 @@ public sealed class SettingsService : IDisposable
             if (loaded.RelaunchMapperWhenClosed is { } relaunch) Current.RelaunchMapperWhenClosed = relaunch;
             if (loaded.CloseToTray is { } closeToTray) Current.CloseToTray = closeToTray;
             if (loaded.PaneOpen is { } paneOpen) Current.PaneOpen = paneOpen;
+            if (loaded.NetworkAdapterId is { } networkAdapterId) Current.NetworkAdapterId = networkAdapterId;
+            if (loaded.NetworkAdapterName is { } networkAdapterName) Current.NetworkAdapterName = networkAdapterName;
+            if (loaded.PreferredIpVersion is { } preferredIpVersion) Current.PreferredIpVersion = preferredIpVersion;
+            if (loaded.SelectedIpAddress is { } selectedIpAddress) Current.SelectedIpAddress = selectedIpAddress;
         }
         catch
         {
@@ -75,6 +79,10 @@ public sealed class SettingsService : IDisposable
                     RelaunchMapperWhenClosed = Current.RelaunchMapperWhenClosed,
                     CloseToTray = Current.CloseToTray,
                     PaneOpen = Current.PaneOpen,
+                    NetworkAdapterId = Current.NetworkAdapterId,
+                    NetworkAdapterName = Current.NetworkAdapterName,
+                    PreferredIpVersion = Current.PreferredIpVersion,
+                    SelectedIpAddress = Current.SelectedIpAddress,
                 };
                 var json = JsonSerializer.Serialize(dto, JsonOptions);
                 File.WriteAllText(configPath, json);
@@ -110,5 +118,9 @@ public sealed class SettingsService : IDisposable
         public bool? RelaunchMapperWhenClosed { get; set; }
         public bool? CloseToTray { get; set; }
         public bool? PaneOpen { get; set; }
+        public string? NetworkAdapterId { get; set; }
+        public string? NetworkAdapterName { get; set; }
+        public string? PreferredIpVersion { get; set; }
+        public string? SelectedIpAddress { get; set; }
     }
 }

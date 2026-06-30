@@ -20,6 +20,58 @@
 
                     <Separator Background="{DynamicResource ControlStrokeColorDefaultBrush}" Margin="0,0,0,16" />
 
+                    <!-- 网络 -->
+                    <TextBlock Text="网络" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="网络适配器" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding NetworkAdapters}"
+                                  SelectedValue="{Binding SelectedNetworkAdapterId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  SelectedValuePath="Id"
+                                  DisplayMemberPath="DisplayName"
+                                  MinWidth="360" />
+                        <ui:Button Grid.Column="2"
+                                   Content="刷新"
+                                   Command="{Binding RefreshNetworkAdaptersCommand}"
+                                   Margin="12,0,0,0" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="IP 版本" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding IpVersionOptions}"
+                                  SelectedItem="{Binding PreferredIpVersion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  Width="120"
+                                  HorizontalAlignment="Left" />
+                    </Grid>
+
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="IP 地址" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1"
+                                  ItemsSource="{Binding IpAddresses}"
+                                  SelectedValue="{Binding SelectedIpAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                  SelectedValuePath="Address"
+                                  DisplayMemberPath="DisplayName"
+                                  MinWidth="260"
+                                  HorizontalAlignment="Left" />
+                    </Grid>
+
+                    <Separator Background="{DynamicResource ControlStrokeColorDefaultBrush}" Margin="0,0,0,16" />
+
                     <!-- 关闭映射窗口后自动重开 -->
                     <ui:ToggleSwitch Content="用户关闭映射窗口后自动重开"
                                      IsChecked="{Binding RelaunchMapperWhenClosed, Mode=TwoWay}"

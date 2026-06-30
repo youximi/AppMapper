@@ -15,6 +15,10 @@ public sealed class Settings : INotifyPropertyChanged
     private bool relaunchMapperWhenClosed = true;
     private bool closeToTray = true;
     private bool paneOpen = true;
+    private string networkAdapterId = "";
+    private string networkAdapterName = "";
+    private string preferredIpVersion = "IPv4";
+    private string selectedIpAddress = "";
 
     /// <summary>TCP 监听端口。修改后需在 UI 点「重启服务」生效。</summary>
     public int Port
@@ -42,6 +46,34 @@ public sealed class Settings : INotifyPropertyChanged
     {
         get => paneOpen;
         set => SetField(ref paneOpen, value);
+    }
+
+    /// <summary>绑定的网络适配器系统 ID；空值表示自动选择。</summary>
+    public string NetworkAdapterId
+    {
+        get => networkAdapterId;
+        set => SetField(ref networkAdapterId, value?.Trim() ?? "");
+    }
+
+    /// <summary>绑定网卡的展示名，仅用于网卡暂不可用时提示用户。</summary>
+    public string NetworkAdapterName
+    {
+        get => networkAdapterName;
+        set => SetField(ref networkAdapterName, value?.Trim() ?? "");
+    }
+
+    /// <summary>优先使用的 IP 版本：IPv4 / IPv6。</summary>
+    public string PreferredIpVersion
+    {
+        get => preferredIpVersion;
+        set => SetField(ref preferredIpVersion, value == "IPv6" ? "IPv6" : "IPv4");
+    }
+
+    /// <summary>绑定的具体 IP；空值表示在当前网卡上自动取一个可用地址。</summary>
+    public string SelectedIpAddress
+    {
+        get => selectedIpAddress;
+        set => SetField(ref selectedIpAddress, value?.Trim() ?? "");
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

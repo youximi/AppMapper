@@ -27,6 +27,8 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     private string currentStatus = "等待设备连接";
     private string serverAddress = "";
     private string pairingUri = "";
+    private string networkWarning = "";
+    private string? lastNetworkWarning;
 
     public Settings Settings => settingsService.Current;
 
@@ -59,6 +61,11 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         {
             if (e.PropertyName == nameof(Settings.RelaunchMapperWhenClosed))
                 mapping.RelaunchWhenClosed = Settings.RelaunchMapperWhenClosed;
+
+            if (e.PropertyName is nameof(Settings.NetworkAdapterId) or
+                nameof(Settings.PreferredIpVersion) or
+                nameof(Settings.SelectedIpAddress))
+                UpdatePairingDisplay();
         };
         mapping.RelaunchWhenClosed = Settings.RelaunchMapperWhenClosed;
     }
@@ -119,6 +126,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
                 PairingCode = pairingCode.CurrentCode,
                 ServerAddress = serverAddress,
                 PairingUri = pairingUri,
+                NetworkWarning = networkWarning,
                 Port = Settings.Port,
                 CurrentStatus = currentStatus,
                 Devices = GetDevicesSnapshot(),
@@ -131,12 +139,22 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         lock (stateLock)
         {
-            var host = NetworkInfoService.GetPrimaryIPv4();
-            serverAddress = $"{host}:{Settings.Port}";
-            pairingUri = $"appmapper://connect?host={host}&port={Settings.Port}&code={pairingCode.CurrentCode}";
+            var address = NetworkInfoService.ResolveAddress(Settings);
+            serverAddress = $"{address.ServerAddressHost}:{Settings.Port}";
+            pairingUri = $"appmapper://connect?host={NetworkInfoService.FormatHostForUri(address.Host)}&port={Settings.Port}&code={pairingCode.CurrentCode}";
+            networkWarning = address.Warning ?? "";
+            if (!string.IsNullOrWhiteSpace(address.Warning) && address.Warning != lastNetworkWarning)
+            {
+                lastNetworkWarning = address.Warning;
+                log.Warn(address.Warning);
+            }
+            else if (address.Warning == null)
+            {
+                lastNetworkWarning = null;
+            }
         }
 
-        PairingChanged?.Invoke(new PairingInfo(pairingCode.CurrentCode, serverAddress, pairingUri, Settings.Port));
+        PairingChanged?.Invoke(new PairingInfo(pairingCode.CurrentCode, serverAddress, pairingUri, Settings.Port, networkWarning));
     }
 
     private void OnHello(string deviceId, string deviceName, string remoteEndpoint)
