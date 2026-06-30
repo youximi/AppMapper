@@ -1,4 +1,4 @@
-<Window x:Class="AppMapper.Controller.MainWindow"
+<ui:FluentWindow x:Class="AppMapper.Controller.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -7,6 +7,9 @@
         Title="AppMapper"
         Width="520" Height="720" MinWidth="440" MinHeight="560"
         Background="{DynamicResource ApplicationBackgroundBrush}"
+        ExtendsContentIntoTitleBar="True"
+        WindowBackdropType="Mica"
+        WindowCornerPreference="Round"
         Loaded="OnLoaded"
         Closing="OnClosing">
     <Grid>
@@ -16,6 +19,7 @@
                            CompactPaneLength="44"
                            IsPaneToggleVisible="True"
                            IsBackButtonVisible="Collapsed"
+                           TitleBar="{Binding ElementName=AppTitleBar}"
                            PaneOpened="OnPaneOpened"
                            PaneClosed="OnPaneClosed">
             <ui:NavigationView.MenuItems>
@@ -50,5 +54,12 @@
                 </ContextMenu>
             </tray:NotifyIcon.Menu>
         </tray:NotifyIcon>
+
+        <ui:TitleBar x:Name="AppTitleBar"
+                     Title="AppMapper"
+                     Icon="{ui:SymbolIcon Fluent24}"
+                     ShowMinimize="True"
+                     ShowMaximize="True"
+                     ShowClose="True" />
     </Grid>
-</Window>
+</ui:FluentWindow>

@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using AppMapper.Controller.Abstractions;
 using AppMapper.Controller.Core;
+using Wpf.Ui.Controls;
 using Application = System.Windows.Application;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
@@ -16,11 +17,11 @@ using Point = System.Windows.Point;
 namespace AppMapper.Controller;
 
 /// <summary>
-/// 主窗口。普通 <see cref="Window"/>（系统标准标题栏，保证关闭/最小/最大按钮与拖动），
+/// 主窗口。使用 <see cref="FluentWindow"/> + <see cref="TitleBar"/> 提供与 WPF-UI 一致的窗口外观，
 /// 承载 <see cref="NavigationView"/>（左侧 4 页导航）与托盘 <see cref="Wpf.Ui.Tray.Controls.NotifyIcon"/>。
 /// 点窗口 X 时按设置缩到托盘而非退出（需求 11）；侧栏折叠状态持久化；启动默认打开配对页。
 /// </summary>
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
     private bool forceExit;
 
