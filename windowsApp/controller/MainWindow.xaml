@@ -12,7 +12,7 @@
     <Grid>
         <ui:NavigationView x:Name="RootNavigation"
                            PaneDisplayMode="Left"
-                           OpenPaneLength="132"
+                           OpenPaneLength="96"
                            CompactPaneLength="44"
                            IsPaneToggleVisible="True"
                            IsBackButtonVisible="Collapsed"
@@ -22,11 +22,6 @@
                 <ui:NavigationViewItem Content="配对" TargetPageType="{x:Type views:PairingPage}" NavigationCacheMode="Required">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="QrCode24" />
-                    </ui:NavigationViewItem.Icon>
-                </ui:NavigationViewItem>
-                <ui:NavigationViewItem Content="设备" TargetPageType="{x:Type views:DevicesPage}" NavigationCacheMode="Required">
-                    <ui:NavigationViewItem.Icon>
-                        <ui:SymbolIcon Symbol="Phone24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
                 <ui:NavigationViewItem Content="日志" TargetPageType="{x:Type views:LogsPage}" NavigationCacheMode="Required">

@@ -1,14 +1,14 @@
+using System.Collections.ObjectModel;
 using System.Windows.Media.Imaging;
 using AppMapper.Controller.Abstractions;
+using AppMapper.Controller.Models;
 using AppMapper.Controller.Services;
 
 namespace AppMapper.Controller.ViewModels;
 
-/// <summary>配对页 VM：显示本机地址 / 验证码 / 二维码 / 配对链接。端口设置移至设置页。</summary>
+/// <summary>配对页 VM：显示本机地址 / 验证码 / 二维码 / 已连接设备。端口设置移至设置页。</summary>
 public sealed class PairingViewModel : ViewModelBase
 {
-    private readonly ICoreFacade core;
-
     private string serverAddress = "";
     private string pairingCode = "";
     private string pairingUri = "";
@@ -17,11 +17,12 @@ public sealed class PairingViewModel : ViewModelBase
 
     public PairingViewModel(ICoreFacade core)
     {
-        this.core = core;
         ApplySnapshot(core.GetStateSnapshot());
         core.PairingChanged += OnPairingChanged;
+        core.DevicesChanged += OnDevicesChanged;
     }
 
+    public ObservableCollection<DeviceState> Devices { get; } = new();
     public string ServerAddress { get => serverAddress; private set => SetField(ref serverAddress, value); }
     public string PairingCode { get => pairingCode; private set => SetField(ref pairingCode, value); }
     public string PairingUri { get => pairingUri; private set => SetField(ref pairingUri, value); }
@@ -36,6 +37,7 @@ public sealed class PairingViewModel : ViewModelBase
         PairingUri = snap.PairingUri;
         NetworkWarning = snap.NetworkWarning;
         QrImage = GenerateQr(snap.PairingUri);
+        ReplaceDevices(snap.Devices);
     }
 
     private void OnPairingChanged(PairingInfo info)
@@ -50,6 +52,9 @@ public sealed class PairingViewModel : ViewModelBase
         });
     }
 
+    private void OnDevicesChanged(IReadOnlyList<DeviceState> snapshot) =>
+        Dispatch(() => ReplaceDevices(snapshot));
+
     protected override void OnPropertyChanged(string? propertyName = null)
     {
         base.OnPropertyChanged(propertyName);
@@ -59,4 +64,11 @@ public sealed class PairingViewModel : ViewModelBase
 
     private static BitmapImage? GenerateQr(string uri) =>
         string.IsNullOrEmpty(uri) ? null : QrCodeService.Generate(uri);
+
+    private void ReplaceDevices(IReadOnlyList<DeviceState> snapshot)
+    {
+        Devices.Clear();
+        foreach (var d in snapshot)
+            Devices.Add(d);
+    }
 }
