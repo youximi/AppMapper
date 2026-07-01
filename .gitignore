@@ -25,6 +25,7 @@ apps/
 
 *.log
 *.tmp
+*.hprof
 release-notes.md
 
 windowsApp/**/logs/

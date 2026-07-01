@@ -63,8 +63,6 @@ class AppCoordinator(
         }
         activity.startActivity(Intent.createChooser(sendIntent, "导出 AppMapper 日志"))
     }
-
-    fun usageAccessGranted(): Boolean = usageReader.hasUsageAccess()
 }
 
 data class AppState(

@@ -1,25 +1,26 @@
 package dev.youximi.appmapper
 
 import android.Manifest
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,9 +34,9 @@ import com.journeyapps.barcodescanner.ScanOptions
 import dev.youximi.appmapper.data.PairingParser
 import dev.youximi.appmapper.data.PairingTarget
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
-    hasUsageAccess: Boolean,
     initialTarget: PairingTarget,
     onSaveTarget: (PairingTarget) -> Unit,
     onStart: () -> Unit,
@@ -45,8 +46,8 @@ internal fun HomeScreen(
     var port by rememberSaveable(initialTarget.port) { mutableStateOf(initialTarget.port.toString()) }
     var code by rememberSaveable(initialTarget.code) { mutableStateOf(initialTarget.code) }
     var connectionStatus by rememberSaveable { mutableStateOf("未连接") }
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val qrScanner = rememberLauncherForActivityResult(ScanContract()) { result ->
         val content = result.contents ?: return@rememberLauncherForActivityResult
         PairingParser.parseUri(content)?.let { parsed ->
@@ -56,21 +57,24 @@ internal fun HomeScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    Scaffold(
+        topBar = { TopAppBar(title = { Text("配对") }) },
+        bottomBar = {},
+    ) { padding ->
         Column(
             modifier = Modifier
-                .weight(1f, fill = true)
-                .verticalScroll(rememberScrollState()),
+                .padding(padding)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("配对")
-            Text(if (hasUsageAccess) "使用情况访问权限：已授权" else "使用情况访问权限：未授权")
-            Text("运行状态：$connectionStatus")
+            ListItem(
+                headlineContent = { Text("运行状态") },
+                supportingContent = { Text(connectionStatus) },
+            )
+
+            HorizontalDivider()
 
             OutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
@@ -79,69 +83,62 @@ internal fun HomeScreen(
                 label = { Text("IP") },
                 singleLine = true,
             )
-            Row(
+            OutlinedTextField(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedTextField(
-                    modifier = Modifier.weight(1f),
-                    value = port,
-                    onValueChange = { port = it.filter(Char::isDigit) },
-                    label = { Text("端口") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
-                OutlinedTextField(
-                    modifier = Modifier.weight(1f),
-                    value = code,
-                    onValueChange = { code = it.filter(Char::isDigit).take(6) },
-                    label = { Text("验证码") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
-            }
+                value = port,
+                onValueChange = { port = it.filter(Char::isDigit) },
+                label = { Text("端口") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = code,
+                onValueChange = { code = it.filter(Char::isDigit).take(6) },
+                label = { Text("验证码") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
 
-            Row(
+            Button(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                onClick = {
+                    val target = PairingTarget(host.trim(), port.toIntOrNull() ?: 8765, code.trim())
+                    onSaveTarget(target)
+                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    connectionStatus = "已保存"
+                    onStart()
+                },
             ) {
-                Button(
-                    onClick = {
-                        val target = PairingTarget(host.trim(), port.toIntOrNull() ?: 8765, code.trim())
-                        onSaveTarget(target)
-                        if (Build.VERSION.SDK_INT >= 33) {
-                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                        connectionStatus = "已保存"
-                        onStart()
-                    },
-                ) {
-                    Text("开始")
-                }
-                FilledTonalButton(onClick = {
+                Text("开始")
+            }
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
                     connectionStatus = "已停止"
                     onStop()
-                }) {
-                    Text("停止")
-                }
+                },
+            ) {
+                Text("停止")
             }
-        }
 
-        Text("辅助功能")
-        FilledTonalButton(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = {
-                qrScanner.launch(
-                    ScanOptions()
-                        .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                        .setPrompt("扫描 AppMapper 配对二维码")
-                        .setBeepEnabled(false)
-                        .setOrientationLocked(false),
-                )
-            },
-        ) {
-            Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
-            Text("扫描二维码", modifier = Modifier.padding(start = 8.dp))
+            HorizontalDivider()
+
+            Text("二维码", style = androidx.compose.material3.MaterialTheme.typography.titleSmall)
+            FilledTonalButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    qrScanner.launch(
+                        ScanOptions()
+                            .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                            .setPrompt("扫描 AppMapper 配对二维码")
+                            .setBeepEnabled(false)
+                            .setOrientationLocked(false),
+                    )
+                },
+            ) {
+                Text("扫描二维码")
+            }
         }
     }
 }

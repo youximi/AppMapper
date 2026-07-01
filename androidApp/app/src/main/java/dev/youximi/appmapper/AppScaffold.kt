@@ -15,16 +15,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 private enum class MainTab {
     Home,
@@ -41,11 +40,7 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
     val appState by rememberAppState(coordinator)
     var rootPage by rememberSaveable { mutableStateOf(RootPage.Main) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
-    var draftPollingMs by rememberSaveable { mutableStateOf(appState.pollingMs) }
-
-    LaunchedEffect(appState.pollingMs) {
-        draftPollingMs = appState.pollingMs
-    }
+    var draftPollingMs by rememberSaveable(appState.pollingMs) { mutableStateOf(appState.pollingMs) }
 
     if (rootPage == RootPage.Logs) {
         BackHandler { rootPage = RootPage.Main }
@@ -81,7 +76,6 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
         ) {
             when (selectedTab) {
                 MainTab.Home -> HomeScreen(
-                    hasUsageAccess = appState.hasUsageAccess,
                     initialTarget = appState.pairingTarget,
                     onSaveTarget = coordinator::saveTarget,
                     onStart = {
