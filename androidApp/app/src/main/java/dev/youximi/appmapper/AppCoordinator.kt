@@ -3,7 +3,9 @@ package dev.youximi.appmapper
 import android.app.Activity
 import android.content.Intent
 import dev.youximi.appmapper.data.AppLogger
-import dev.youximi.appmapper.data.PairingTarget
+import dev.youximi.appmapper.data.PairedComputer
+import dev.youximi.appmapper.data.PairingStore
+import dev.youximi.appmapper.data.PairingRequest
 import dev.youximi.appmapper.data.SettingsStore
 import dev.youximi.appmapper.data.UsageAppReader
 import dev.youximi.appmapper.service.ForegroundSyncService
@@ -13,48 +15,37 @@ class AppCoordinator(
     private val settings: SettingsStore,
     private val usageReader: UsageAppReader,
 ) {
-    fun loadInitialState(): AppState {
-        val target = settings.getTarget()
-        return AppState(
-            pairingTarget = target,
-            pollingMs = settings.getPollingMs(),
-            hasUsageAccess = usageReader.hasUsageAccess(),
-        )
+    private val pairing = PairingStore(activity)
+
+    fun loadInitialState(): AppState = AppState(
+        pairedComputer = runCatching { pairing.read() }.getOrNull(),
+        pollingMs = settings.getPollingMs(),
+        hasUsageAccess = usageReader.hasUsageAccess(),
+    )
+
+    fun pair(request: PairingRequest) {
+        AppLogger.write(activity, "Pairing requested for ${request.host}:${request.port}.")
+        ForegroundSyncService.pair(activity, request)
     }
 
-    fun saveTarget(target: PairingTarget) {
-        AppLogger.write(activity, "Pairing target saved: ${target.host}:${target.port}, codeLength=${target.code.length}.")
-        settings.saveTarget(target)
+    fun forgetComputer() {
+        ForegroundSyncService.forget(activity)
     }
 
     fun savePollingMs(value: Long) {
-        AppLogger.write(activity, "Polling interval saved: ${value}ms.")
         settings.savePollingMs(value)
     }
 
     fun openUsageAccessSettings() {
-        AppLogger.write(activity, "Opening usage access settings.")
         activity.startActivity(usageReader.usageAccessIntent())
     }
 
-    fun startService() {
-        AppLogger.write(activity, "Start requested from UI.")
-        ForegroundSyncService.start(activity)
-    }
-
-    fun stopService() {
-        AppLogger.write(activity, "Stop requested from UI.")
-        ForegroundSyncService.stop(activity)
-    }
-
+    fun startService() = ForegroundSyncService.start(activity)
+    fun stopService() = ForegroundSyncService.stop(activity)
     fun readLogs(): String = AppLogger.read(activity)
-
-    fun clearLogs() {
-        AppLogger.clear(activity)
-    }
+    fun clearLogs() = AppLogger.clear(activity)
 
     fun exportLogs() {
-        AppLogger.write(activity, "Logs export requested.")
         val logs = AppLogger.read(activity).ifBlank { "AppMapper log is empty." }
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
@@ -66,7 +57,7 @@ class AppCoordinator(
 }
 
 data class AppState(
-    val pairingTarget: PairingTarget,
+    val pairedComputer: PairedComputer?,
     val pollingMs: Long,
     val hasUsageAccess: Boolean,
 )

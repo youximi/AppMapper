@@ -13,9 +13,11 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import dev.youximi.appmapper.service.SyncStatus
 
 private enum class MainTab {
     Home,
@@ -37,7 +40,8 @@ private enum class RootPage {
 
 @Composable
 internal fun AppScaffold(coordinator: AppCoordinator) {
-    val appState by rememberAppState(coordinator)
+    val connectionStatus by SyncStatus.text.collectAsState()
+    val appState by rememberAppState(coordinator, connectionStatus)
     var rootPage by rememberSaveable { mutableStateOf(RootPage.Main) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var draftPollingMs by rememberSaveable(appState.pollingMs) { mutableStateOf(appState.pollingMs) }
@@ -76,8 +80,12 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
         ) {
             when (selectedTab) {
                 MainTab.Home -> HomeScreen(
-                    initialTarget = appState.pairingTarget,
-                    onSaveTarget = coordinator::saveTarget,
+                    pairedComputer = appState.pairedComputer,
+                    connectionStatus = connectionStatus,
+                    onPair = { request ->
+                        coordinator.savePollingMs(draftPollingMs)
+                        coordinator.pair(request)
+                    },
                     onStart = {
                         coordinator.savePollingMs(draftPollingMs)
                         coordinator.startService()
@@ -91,6 +99,8 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
                     onOpenUsageAccess = coordinator::openUsageAccessSettings,
                     onPollingSelected = { draftPollingMs = it },
                     onOpenLogs = { rootPage = RootPage.Logs },
+                    pairedComputer = appState.pairedComputer,
+                    onForgetComputer = coordinator::forgetComputer,
                 )
             }
         }
@@ -98,9 +108,10 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
 }
 
 @Composable
-private fun rememberAppState(coordinator: AppCoordinator): State<AppState> {
+private fun rememberAppState(coordinator: AppCoordinator, status: String): State<AppState> {
     val state = remember { mutableStateOf(coordinator.loadInitialState()) }
     val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(status) { state.value = coordinator.loadInitialState() }
 
     DisposableEffect(coordinator, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->

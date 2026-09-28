@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using AppMapper.Controller.Abstractions;
 using AppMapper.Controller.Models;
@@ -11,21 +13,25 @@ public sealed class PairingViewModel : ViewModelBase
 {
     private string serverAddress = "";
     private string pairingCode = "";
-    private string pairingUri = "";
     private string networkWarning = "";
     private BitmapImage? qrImage;
+    private DeviceState? selectedDevice;
+    private readonly ICoreFacade core;
 
     public PairingViewModel(ICoreFacade core)
     {
+        this.core = core;
+        RemoveSelectedCommand = new RelayCommand(RemoveSelected);
         ApplySnapshot(core.GetStateSnapshot());
         core.PairingChanged += OnPairingChanged;
         core.DevicesChanged += OnDevicesChanged;
     }
 
     public ObservableCollection<DeviceState> Devices { get; } = new();
+    public ICommand RemoveSelectedCommand { get; }
+    public DeviceState? SelectedDevice { get => selectedDevice; set => SetField(ref selectedDevice, value); }
     public string ServerAddress { get => serverAddress; private set => SetField(ref serverAddress, value); }
     public string PairingCode { get => pairingCode; private set => SetField(ref pairingCode, value); }
-    public string PairingUri { get => pairingUri; private set => SetField(ref pairingUri, value); }
     public string NetworkWarning { get => networkWarning; private set => SetField(ref networkWarning, value); }
     public bool HasNetworkWarning => !string.IsNullOrWhiteSpace(networkWarning);
     public BitmapImage? QrImage { get => qrImage; private set => SetField(ref qrImage, value); }
@@ -34,7 +40,6 @@ public sealed class PairingViewModel : ViewModelBase
     {
         ServerAddress = snap.ServerAddress;
         PairingCode = snap.PairingCode;
-        PairingUri = snap.PairingUri;
         NetworkWarning = snap.NetworkWarning;
         QrImage = GenerateQr(snap.PairingUri);
         ReplaceDevices(snap.Devices);
@@ -46,7 +51,6 @@ public sealed class PairingViewModel : ViewModelBase
         {
             ServerAddress = info.ServerAddress;
             PairingCode = info.Code;
-            PairingUri = info.PairingUri;
             NetworkWarning = info.NetworkWarning;
             QrImage = GenerateQr(info.PairingUri);
         });
@@ -60,6 +64,15 @@ public sealed class PairingViewModel : ViewModelBase
         base.OnPropertyChanged(propertyName);
         if (propertyName == nameof(NetworkWarning))
             base.OnPropertyChanged(nameof(HasNetworkWarning));
+    }
+
+    private void RemoveSelected()
+    {
+        var device = SelectedDevice;
+        if (device?.IsPaired != true) return;
+        if (System.Windows.MessageBox.Show($"移除 {device.DeviceName}？手机需要重新扫码配对。", "移除已配对手机",
+                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+            core.RemovePairedDevice(device.DeviceId);
     }
 
     private static BitmapImage? GenerateQr(string uri) =>

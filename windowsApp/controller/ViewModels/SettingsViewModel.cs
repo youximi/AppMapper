@@ -13,6 +13,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string port = "8765";
     private bool relaunchMapperWhenClosed = true;
     private bool closeToTray = true;
+    private bool startWithWindows;
     private bool paneOpen = true;
     private string selectedNetworkAdapterId = "";
     private string preferredIpVersion = "IPv4";
@@ -31,6 +32,7 @@ public sealed class SettingsViewModel : ViewModelBase
         port = s.Port.ToString();
         relaunchMapperWhenClosed = s.RelaunchMapperWhenClosed;
         closeToTray = s.CloseToTray;
+        startWithWindows = s.StartWithWindows;
         paneOpen = s.PaneOpen;
         selectedNetworkAdapterId = s.NetworkAdapterId;
         preferredIpVersion = s.PreferredIpVersion;
@@ -138,6 +140,15 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
+    public bool StartWithWindows
+    {
+        get => startWithWindows;
+        set
+        {
+            if (SetField(ref startWithWindows, value)) core.Settings.StartWithWindows = value;
+        }
+    }
+
     public bool PaneOpen
     {
         get => paneOpen;
@@ -165,6 +176,10 @@ public sealed class SettingsViewModel : ViewModelBase
                         relaunchMapperWhenClosed = s.RelaunchMapperWhenClosed;
                         OnPropertyChanged(nameof(RelaunchMapperWhenClosed));
                     }
+                    break;
+                case nameof(Settings.StartWithWindows):
+                    startWithWindows = s.StartWithWindows;
+                    OnPropertyChanged(nameof(StartWithWindows));
                     break;
                 case nameof(Settings.CloseToTray):
                     if (closeToTray != s.CloseToTray)

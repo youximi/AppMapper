@@ -112,8 +112,6 @@ public static class NetworkInfoService
         return CreateSelection(address.Address, address.Version, null);
     }
 
-    public static string GetPrimaryIPv4() => ResolveAddress(new Settings()).Host;
-
     public static string FormatHostForUri(string address) =>
         Uri.EscapeDataString(address);
 

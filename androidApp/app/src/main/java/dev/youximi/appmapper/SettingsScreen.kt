@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import dev.youximi.appmapper.data.PairedComputer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +42,8 @@ internal fun SettingsScreen(
     onOpenUsageAccess: () -> Unit,
     onPollingSelected: (Long) -> Unit,
     onOpenLogs: () -> Unit,
+    pairedComputer: PairedComputer?,
+    onForgetComputer: () -> Unit,
 ) {
     var selectedPolling by rememberSaveable(pollingMs) { mutableStateOf(pollingMs) }
     var pollingMenuExpanded by rememberSaveable { mutableStateOf(false) }
@@ -127,6 +130,15 @@ internal fun SettingsScreen(
             )
 
             HorizontalDivider()
+
+            pairedComputer?.let { computer ->
+                ListItem(
+                    headlineContent = { Text("已配对：${computer.name}") },
+                    supportingContent = { Text("忘记后需要重新扫码") },
+                    trailingContent = { TextButton(onClick = onForgetComputer) { Text("忘记电脑") } },
+                )
+                HorizontalDivider()
+            }
 
             Text("更多", style = MaterialTheme.typography.titleSmall)
             ListItem(

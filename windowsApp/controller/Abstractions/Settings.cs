@@ -14,6 +14,7 @@ public sealed class Settings : INotifyPropertyChanged
     private int port = 8765;
     private bool relaunchMapperWhenClosed = true;
     private bool closeToTray = true;
+    private bool startWithWindows;
     private bool paneOpen = true;
     private string networkAdapterId = "";
     private string networkAdapterName = "";
@@ -39,6 +40,13 @@ public sealed class Settings : INotifyPropertyChanged
     {
         get => closeToTray;
         set => SetField(ref closeToTray, value);
+    }
+
+    /// <summary>Launch when the current Windows user signs in.</summary>
+    public bool StartWithWindows
+    {
+        get => startWithWindows;
+        set => SetField(ref startWithWindows, value);
     }
 
     /// <summary>左侧导航栏是否展开显示文字（持久化折叠状态）。</summary>

@@ -25,9 +25,9 @@ AppMapper/
 ## 技术栈
 
 - **Android 客户端**：Kotlin、Jetpack Compose、Material3、前台服务、`UsageStatsManager`。最低 Android 13。
-- **Windows 总控端**：C# WPF（.NET 8）、TCP 服务器、二维码配对、映射进程管理。
+- **Windows 总控端**：C# WPF（.NET 8）、TLS 服务器、二维码配对、映射进程管理。
 - **Windows 映射端**：C++ Win32，128×128 分层置顶窗口，不联网。
-- **传输协议**：局域网 TCP + JSON Lines（每条消息一行 JSON）。
+- **传输协议**：局域网 TLS + JSON Lines（每条消息一行 JSON），协议版本 2。
 
 ## 配对方式
 
@@ -35,16 +35,18 @@ AppMapper/
 
 - 本机局域网 IP
 - 端口（默认 `8765`）
-- 6 位数字验证码（每 60 秒刷新一次，只用于新连接）
-- 包含连接信息的二维码
+- 6 位数字验证码（每 60 秒刷新一次，只用于临时连接）
+- 用于记住设备的二维码
 
 二维码内容格式：
 
 ```text
-appmapper://connect?host=192.168.1.10&port=8765&code=123456
+appmapper://connect?host=192.168.1.10&port=8765&serverId=<电脑ID>&fingerprint=<64位公钥指纹>&enrollToken=<32位一次性令牌>
 ```
 
-Android 端可以直接扫码，也可以手动输入 IP、端口、验证码连接。
+Android 端勾选「记住设备」后扫描二维码绑定；二维码中的公钥指纹用于验证电脑身份，一次性令牌授权长期配对。手机使用 Android Keystore 中的设备密钥应答电脑的一次性挑战；验证码刷新、短暂断网、电脑重启后会自动重连。没有摄像头时，可取消「记住设备」，手动输入 IP、端口和 6 位验证码进行临时连接。临时连接不会保存配对，断线后需重新输入验证码，也不会清除已有的长期配对。手机需保持同步前台服务运行，电脑需要运行总控端；Windows 登录后启动到托盘可在设置中开启。手机重启后需打开 App 并启动同步，本次没有加入手机开机自启。
+
+电脑「配对」页可以移除手机，手机「设置」页可以忘记电脑；之后要重新扫码。电脑 IP 变化时，手机会在同一 IPv4 广播网段上尝试发现电脑。发现结果仍须通过原先保存的电脑公钥指纹校验；错误的地址提示不会清除配对。若路由器隔离设备、Windows 防火墙拦截 UDP 8766，或手机和电脑不在同一网段，请重新扫码。
 
 ## 前置环境
 
@@ -84,7 +86,7 @@ msbuild windowsApp\mapper\AppMapper.Mapper.vcxproj /p:Configuration=Release /p:P
 2. 确认 `mapper-template.exe` 已放在总控端 exe 同级目录（见上节构建说明）。
 3. 手机和电脑接入**同一局域网**。
 4. 在手机上安装并打开 Android 客户端，按提示授予"使用情况访问"权限（`PACKAGE_USAGE_STATS`）。
-5. 扫描总控端二维码，或手动输入 IP、端口、验证码完成配对。
+5. 勾选「记住设备」并扫描总控端二维码完成绑定；无摄像头时取消勾选，手动输入 IP、端口、验证码进行临时连接。
 6. 在手机上切换到任意前台 App，电脑任务栏会出现对应的映射窗口；回到桌面 / 锁屏 / 熄屏时窗口自动关闭。
 
 ## 权限说明
@@ -93,17 +95,20 @@ Android 客户端需要以下权限，全部用于核心功能：
 
 | 权限                                                    | 用途               |
 |-------------------------------------------------------|------------------|
-| `INTERNET` / `ACCESS_NETWORK_STATE`                   | 局域网 TCP 连接       |
+| `INTERNET` / `ACCESS_NETWORK_STATE`                   | 局域网 TLS 连接       |
 | `CAMERA`                                              | 扫描配对二维码          |
 | `PACKAGE_USAGE_STATS`                                 | 读取当前前台 App（核心功能） |
-| `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_DATA_SYNC` | 保持后台同步           |
+| `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_CONNECTED_DEVICE` | 保持设备连接和后台同步 |
+| `CHANGE_WIFI_MULTICAST_STATE` | 满足 Android 连接设备前台服务的权限要求 |
 | `POST_NOTIFICATIONS`                                  | 前台服务通知           |
 
 
 ## 隐私与安全
 
-- 全程**仅局域网通信**，Android 端连接的目标地址完全由用户在界面上输入或扫码得到，代码里没有任何硬编码的服务器地址。
-- Windows 总控端是 TCP 服务端，只监听局域网，不会主动外联任何网络。
+- 全程**仅局域网通信**。扫码绑定与后续重连使用二维码里的电脑公钥指纹验证电脑身份；断线后可能经同网段 UDP 广播发现新地址，发现回复不能替代指纹验证。手动临时连接不验证电脑身份，局域网内的攻击者可能冒充目标电脑；仅在应急时使用。
+- 电脑身份和已配对手机公钥保存在软件目录 `config/pairing.dat`，由当前 Windows 用户的 DPAPI 加密。手机配对记录在 App 私有 no-backup 目录 `config/paired-computer.json`；私钥由 Android Keystore 管理。不要将 Windows 数据文件移到另一 Windows 用户下期待可以解密。
+- 六位码只能授权临时连接；二维码中的随机令牌才能授权长期绑定。两者都会在使用后或每 60 秒失效，不作为重连凭据存储或在日志中记录。
+- Windows 总控端监听 TCP 和 UDP；UDP 发现只回答服务器 ID 和端口，不传输设备凭据。
 - 映射小程序是纯本地窗口程序，不联网。
 
 ## License
