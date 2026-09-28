@@ -14,7 +14,6 @@ import dev.youximi.appmapper.data.ActiveApp
 import dev.youximi.appmapper.data.AppLogger
 import dev.youximi.appmapper.data.CurrentAppResult
 import dev.youximi.appmapper.data.DeviceKeyStore
-import dev.youximi.appmapper.data.LanDiscovery
 import dev.youximi.appmapper.data.PairedComputer
 import dev.youximi.appmapper.data.PairingRejected
 import dev.youximi.appmapper.data.PairingRequest
@@ -188,19 +187,7 @@ class ForegroundSyncService : Service() {
                         resumingSaved = true
                         val computer = saved!!
                         val name = android.os.Build.MODEL ?: "Android"
-                        try {
-                            client.resume(computer, name)
-                        } catch (failure: Exception) {
-                            if (failure is CancellationException ||
-                                failure is PairingRejected && failure.reason != "computer_identity_changed") throw failure
-                            client.close()
-                            val found = LanDiscovery.find(computer.serverId) ?: throw failure
-                            val updated = computer.copy(host = found.host, port = found.port)
-                            if (updated.host == computer.host && updated.port == computer.port) throw failure
-                            client.resume(updated, name)
-                            try { store.save(updated) }
-                            catch (_: Exception) { throw PairingRejected("device_storage_failed") }
-                        }
+                        client.resume(computer, name)
                         activeSession = SessionKind.Remembered
                     }
                     SyncStatus.text.value = if (activeSession == SessionKind.Temporary) "临时连接中" else "已连接"

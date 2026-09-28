@@ -32,13 +32,9 @@ The phone uses its saved address and fingerprint to establish pinned TLS, then s
 
 `{"type":"hello","protocolVersion":2,"mode":"resume","deviceId":"android-8f3a2c1b","deviceName":"Pixel 8"}`
 
-The computer returns `{"type":"challenge","nonce":"<base64-32-random-bytes>"}`. The phone signs the UTF-8 bytes `appmapper-v2|<serverId>|<deviceId>|<nonce>` using its Android Keystore P-256 key and sends `{"type":"proof","signature":"<base64-DER-ECDSA-signature>"}`. The computer verifies the registered public key and returns `hello_ack`. An unknown or removed device gets `pairing_required`; an invalid proof gets `authentication_failed`.
+The computer returns `{"type":"challenge","nonce":"<base64-32-random-bytes>"}`. The phone signs the UTF-8 bytes `appmapper-v2|<serverId>|<deviceId>|<nonce>` using its Android Keystore P-256 key and sends `{"type":"proof","signature":"<base64-DER-ECDSA-signature>"}`. The computer verifies the registered public key and returns `hello_ack`. An unknown or removed device gets `pairing_required`; an invalid proof gets `authentication_failed`. After a connection fails, the phone retries the saved address. If the computer's address or port changes, the user scans its current QR code again.
 
 Accepted temporary and remembered sessions may send `active_app`, `idle`, and `heartbeat`. Only remembered sessions may send `forget`, which removes the sender's computer-side pairing and closes its session. The Windows pairing page can also remove a phone and disconnect it. Existing active/idle payloads remain in `shared/examples/`.
-
-## Address discovery
-
-After a saved address fails, the phone broadcasts ASCII `appmapper-discover-v2|<serverId>` over UDP port 8766 on local IPv4 interfaces. The computer replies directly with `appmapper-discovery-v2|<serverId>|<tcp-port>`. This response is an address hint, never authentication: the phone still pins the original TLS public key and checks the server ID before saving the new address. A forged or incorrect hint does not clear the saved pairing; the phone continues retrying. Broadcast needs the same IPv4 broadcast domain and a firewall rule allowing UDP 8766.
 
 ## Storage
 

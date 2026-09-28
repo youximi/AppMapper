@@ -22,7 +22,6 @@ public sealed class TcpJsonServer
     private readonly ConcurrentDictionary<string, (int Count, DateTimeOffset Since)> failedCodes = new();
     private TcpListener? listener;
     private CancellationTokenSource? cancellation;
-    private LanDiscoveryService? discovery;
 
     public TcpJsonServer(LogService log, PairingStore pairing, DeviceIdentityService identity)
     {
@@ -46,8 +45,6 @@ public sealed class TcpJsonServer
         cancellation = new CancellationTokenSource();
         listener = new TcpListener(IPAddress.Any, port);
         listener.Start();
-        try { discovery = new LanDiscoveryService(identity.ServerId, port); }
-        catch (SocketException) { log.Warn("LAN discovery unavailable on UDP port 8766."); }
         _ = AcceptLoop(listener, consumeManualCode, consumeEnrollToken, maxDevices, cancellation.Token);
         log.Info($"TCP server started on port {port}.");
     }
@@ -55,8 +52,6 @@ public sealed class TcpJsonServer
     public void Stop()
     {
         cancellation?.Cancel();
-        discovery?.Dispose();
-        discovery = null;
         listener?.Stop();
         listener = null;
         string[] disconnected;
