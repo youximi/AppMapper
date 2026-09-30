@@ -3,13 +3,26 @@ package dev.youximi.appmapper.data
 import dev.youximi.appmapper.BuildConfig
 import org.json.JSONObject
 
-const val ProtocolVersion = 1
+const val ProtocolVersion = 2
 
-data class PairingTarget(
-    val host: String,
-    val port: Int,
-    val code: String,
-)
+sealed interface PairingRequest {
+    val host: String
+    val port: Int
+
+    data class Temporary(
+        override val host: String,
+        override val port: Int,
+        val code: String,
+    ) : PairingRequest
+
+    data class Remembered(
+        override val host: String,
+        override val port: Int,
+        val serverId: String,
+        val fingerprint: String,
+        val enrollToken: String,
+    ) : PairingRequest
+}
 
 data class ActiveApp(
     val appId: String,
@@ -18,16 +31,30 @@ data class ActiveApp(
     val iconPngBase64: String?,
 )
 
-fun helloJson(deviceId: String, deviceName: String, pairingCode: String): JSONObject =
-    JSONObject()
-        .put("type", "hello")
-        .put("protocolVersion", ProtocolVersion)
-        .put("pairingCode", pairingCode)
-        .put("deviceId", deviceId)
-        .put("deviceName", deviceName)
+fun pairHelloJson(deviceId: String, deviceName: String, request: PairingRequest,
+                  publicKeySpki: String?): JSONObject {
+    val hello = JSONObject()
+        .put("type", "hello").put("protocolVersion", ProtocolVersion)
+        .put("deviceId", deviceId).put("deviceName", deviceName)
         .put("androidVersion", android.os.Build.VERSION.SDK_INT)
         .put("appVersion", BuildConfig.VERSION_NAME)
-        .put("timestamp", System.currentTimeMillis())
+    return when (request) {
+        is PairingRequest.Temporary -> hello.put("mode", "pair_temporary")
+            .put("pairingCode", request.code)
+        is PairingRequest.Remembered -> hello.put("mode", "pair_remember")
+            .put("enrollToken", request.enrollToken)
+            .put("publicKeySpki", requireNotNull(publicKeySpki))
+    }
+}
+
+fun resumeHelloJson(deviceId: String, deviceName: String): JSONObject =
+    JSONObject().put("type", "hello").put("protocolVersion", ProtocolVersion)
+        .put("mode", "resume").put("deviceId", deviceId).put("deviceName", deviceName)
+
+fun proofJson(signature: String): JSONObject =
+    JSONObject().put("type", "proof").put("signature", signature)
+
+fun forgetJson(): JSONObject = JSONObject().put("type", "forget")
 
 fun activeAppJson(deviceId: String, sequence: Long, app: ActiveApp, screenOn: Boolean, locked: Boolean): JSONObject =
     JSONObject()

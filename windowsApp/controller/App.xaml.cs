@@ -13,6 +13,8 @@ namespace AppMapper.Controller;
 /// </summary>
 public partial class App : Application
 {
+    private System.Threading.Mutex? singleInstance;
+    private bool ownsSingleInstance;
     /// <summary>核心门面，UI 唯一业务入口。</summary>
     public static AppMapperCoreEngine Core { get; private set; } = null!;
 
@@ -26,16 +28,33 @@ public partial class App : Application
             WriteCrash("TaskScheduler", args.Exception);
 
         base.OnStartup(e);
+        singleInstance = new System.Threading.Mutex(true, @"Local\AppMapper.Controller", out ownsSingleInstance);
+        if (!ownsSingleInstance)
+        {
+            Shutdown();
+            return;
+        }
 
         var baseDir = AppContext.BaseDirectory;
         var log = new LogService(baseDir);
         var settings = new SettingsService(baseDir);
 
-        Core = new AppMapperCoreEngine(log, settings);
-        Core.StartAsync();
+        try
+        {
+            Core = new AppMapperCoreEngine(log, settings);
+            Core.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show($"无法启动 AppMapper：{ex.Message}\n请检查软件目录中的 config/pairing.dat 及目录写入权限。不会自动清除现有配对。",
+                "启动失败", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown();
+            return;
+        }
 
         var mainWindow = new MainWindow();
         mainWindow.Show();
+        if (e.Args.Contains("--background")) mainWindow.Hide();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -49,6 +68,8 @@ public partial class App : Application
             // 退出时忽略清理异常。
         }
 
+        if (ownsSingleInstance) singleInstance?.ReleaseMutex();
+        singleInstance?.Dispose();
         base.OnExit(e);
     }
 

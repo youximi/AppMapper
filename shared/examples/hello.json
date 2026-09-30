@@ -1,10 +1,9 @@
 {
   "type": "hello",
-  "protocolVersion": 1,
-  "pairingCode": "123456",
+  "protocolVersion": 2,
+  "mode": "pair_remember",
+  "enrollToken": "0123456789abcdef0123456789abcdef",
+  "publicKeySpki": "<base64-DER-P256-SPKI>",
   "deviceId": "android-8f3a2c1b",
-  "deviceName": "Pixel 8",
-  "androidVersion": 15,
-  "appVersion": "0.1.0",
-  "timestamp": 1782530000000
+  "deviceName": "Pixel 8"
 }

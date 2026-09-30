@@ -6,19 +6,10 @@ import java.util.UUID
 class SettingsStore(context: Context) {
     private val prefs = context.getSharedPreferences("appmapper", Context.MODE_PRIVATE)
 
-    fun getTarget(): PairingTarget =
-        PairingTarget(
-            host = prefs.getString("host", "") ?: "",
-            port = prefs.getInt("port", 8765),
-            code = prefs.getString("code", "") ?: "",
-        )
-
-    fun saveTarget(target: PairingTarget) {
-        prefs.edit()
-            .putString("host", target.host)
-            .putInt("port", target.port)
-            .putString("code", target.code)
-            .apply()
+    init {
+        // Version 1 saved a rotating pairing code here; it is never a durable credential.
+        if (listOf("code", "host", "port").any(prefs::contains))
+            prefs.edit().remove("code").remove("host").remove("port").commit()
     }
 
     fun getPollingMs(): Long = prefs.getLong("pollingMs", 1000L)

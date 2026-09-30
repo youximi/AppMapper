@@ -27,6 +27,9 @@ public interface ICoreFacade
     /// <summary>打开 apps 目录。</summary>
     void OpenAppsDirectory();
 
+    /// <summary>Revoke a remembered phone and close its active connection.</summary>
+    void RemovePairedDevice(string deviceId);
+
     /// <summary>获取核心当前完整状态快照（供 UI 启动/恢复时重取）。</summary>
     CoreStateSnapshot GetStateSnapshot();
 

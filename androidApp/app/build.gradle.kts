@@ -22,10 +22,17 @@ val hasReleaseSigning = listOf(
     releaseKeyPassword,
 ).all { !it.isNullOrBlank() }
 
+val licenseAssets = layout.buildDirectory.dir("generated/licenseAssets")
+val syncLicenseAssets = tasks.register<Sync>("syncLicenseAssets") {
+    from(rootProject.file("LICENSE"), rootProject.file("THIRD_PARTY_LICENSES.md"))
+    into(licenseAssets)
+}
+
 android {
     namespace = "dev.youximi.appmapper"
     compileSdk = 35
     buildToolsVersion = "36.0.0"
+    sourceSets.getByName("main").assets.srcDir(licenseAssets.get().asFile)
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -67,6 +74,10 @@ android {
             }
         }
     }
+}
+
+tasks.named("preBuild") {
+    dependsOn(syncLicenseAssets)
 }
 
 dependencies {

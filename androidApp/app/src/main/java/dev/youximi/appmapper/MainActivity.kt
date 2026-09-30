@@ -3,6 +3,7 @@ package dev.youximi.appmapper
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import dev.youximi.appmapper.data.AppLogger
@@ -12,6 +13,7 @@ import dev.youximi.appmapper.data.UsageAppReader
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         AppLogger.write(this, "MainActivity created.")
 
         setContent {

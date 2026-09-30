@@ -1,4 +1,5 @@
 using System.IO;
+using Microsoft.Win32;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AppMapper.Controller.Abstractions;
@@ -24,6 +25,7 @@ public sealed class SettingsService : IDisposable
     private bool disposed;
 
     public Settings Current { get; } = new();
+    public event Action<string>? AutoStartError;
 
     public SettingsService(string? baseDirectory = null)
     {
@@ -31,17 +33,46 @@ public sealed class SettingsService : IDisposable
         Directory.CreateDirectory(dir);
         configPath = Path.Combine(dir, "settings.json");
         Load();
+        Current.StartWithWindows = ReadAutoStart();
         Current.PropertyChanged += OnSettingChanged;
         saveTimer = new Timer(_ => SaveNow(), null, Timeout.Infinite, Timeout.Infinite);
     }
 
     private void OnSettingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(Settings.StartWithWindows))
+        {
+            try { SetAutoStart(Current.StartWithWindows); }
+            catch (Exception ex)
+            {
+                Current.PropertyChanged -= OnSettingChanged;
+                try { Current.StartWithWindows = ReadAutoStart(); }
+                finally { Current.PropertyChanged += OnSettingChanged; }
+                AutoStartError?.Invoke($"Windows auto-start setting failed: {ex.GetType().Name}.");
+            }
+        }
         // 防抖：500ms 内多次改动合并为一次落盘。
         lock (saveLock)
         {
             saveTimer.Change(TimeSpan.FromMilliseconds(500), Timeout.InfiniteTimeSpan);
         }
+    }
+
+    private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    private const string RunName = "AppMapper";
+
+    private static bool ReadAutoStart()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunKey);
+        return key?.GetValue(RunName) is string value &&
+            string.Equals(value, $"\"{Environment.ProcessPath}\" --background", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void SetAutoStart(bool enabled)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(RunKey);
+        if (enabled) key.SetValue(RunName, $"\"{Environment.ProcessPath}\" --background");
+        else key.DeleteValue(RunName, throwOnMissingValue: false);
     }
 
     private void Load()
@@ -108,8 +139,8 @@ public sealed class SettingsService : IDisposable
     {
         if (disposed) return;
         disposed = true;
-        saveTimer.Dispose();
         Flush();
+        saveTimer.Dispose();
     }
 
     private sealed class SettingsDto

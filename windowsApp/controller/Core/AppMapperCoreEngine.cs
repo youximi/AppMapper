@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using AppMapper.Controller.Abstractions;
@@ -20,8 +19,10 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     private readonly TcpJsonServer server;
     private readonly PairingCodeService pairingCode;
     private readonly AppMappingService mapping;
+    private readonly PairingStore pairing;
+    private readonly DeviceIdentityService identity;
 
-    private readonly ConcurrentDictionary<string, DeviceState> devices = new();
+    private readonly Dictionary<string, DeviceState> devices = new();
     private readonly object stateLock = new();
     private string activeDeviceId = "";
     private string currentStatus = "等待设备连接";
@@ -43,7 +44,10 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         this.log = log;
         this.settingsService = settingsService;
-        server = new TcpJsonServer(log);
+        settingsService.AutoStartError += log.Warn;
+        pairing = new PairingStore(AppContext.BaseDirectory);
+        identity = new DeviceIdentityService(pairing);
+        server = new TcpJsonServer(log, pairing, identity);
         pairingCode = new PairingCodeService();
         mapping = new AppMappingService(log);
 
@@ -53,8 +57,9 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         server.ActiveAppReceived += OnActiveApp;
         server.IdleReceived += OnIdle;
         server.Disconnected += OnDisconnected;
+        server.PairingChanged += () => { lock (stateLock) RaiseDevicesChanged(); };
 
-        pairingCode.CodeChanged += _ => UpdatePairingDisplay();
+        pairingCode.Changed += UpdatePairingDisplay;
 
         // 设置副作用：RelaunchMapperWhenClosed 变化同步到映射服务。
         Settings.PropertyChanged += (_, e) =>
@@ -83,6 +88,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
             server.Stop();
             mapping.CloseCurrent();
             pairingCode.Dispose();
+            identity.Dispose();
         }
         catch (Exception ex)
         {
@@ -95,9 +101,13 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         if (port < 1 || port > 65535) port = 8765;
         Settings.Port = port;
-        server.Start(port, pairingCode.IsValid, maxDevices: 3);
+        server.Start(port, pairingCode.TryConsumeManual, pairingCode.TryConsumeEnrollment, maxDevices: 3);
         UpdatePairingDisplay();
-        log.Info($"Pairing code: {pairingCode.CurrentCode}");
+    }
+
+    public void RemovePairedDevice(string deviceId)
+    {
+        if (server.RemovePairedDevice(deviceId)) log.Info($"Device removed: {deviceId}.");
     }
 
     public void OpenAppsDirectory()
@@ -121,13 +131,13 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         lock (stateLock)
         {
+            var invitation = pairingCode.Current;
             return new CoreStateSnapshot
             {
-                PairingCode = pairingCode.CurrentCode,
+                PairingCode = invitation.Code,
                 ServerAddress = serverAddress,
                 PairingUri = pairingUri,
                 NetworkWarning = networkWarning,
-                Port = Settings.Port,
                 CurrentStatus = currentStatus,
                 Devices = GetDevicesSnapshot(),
                 RecentLogs = log.GetRecent(),
@@ -137,11 +147,13 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
 
     private void UpdatePairingDisplay()
     {
+        PairingInfo info;
         lock (stateLock)
         {
+            var invitation = pairingCode.Current;
             var address = NetworkInfoService.ResolveAddress(Settings);
             serverAddress = $"{address.ServerAddressHost}:{Settings.Port}";
-            pairingUri = $"appmapper://connect?host={NetworkInfoService.FormatHostForUri(address.Host)}&port={Settings.Port}&code={pairingCode.CurrentCode}";
+            pairingUri = $"appmapper://connect?host={NetworkInfoService.FormatHostForUri(address.Host)}&port={Settings.Port}&serverId={identity.ServerId}&fingerprint={identity.Fingerprint}&enrollToken={invitation.EnrollToken}";
             networkWarning = address.Warning ?? "";
             if (!string.IsNullOrWhiteSpace(address.Warning) && address.Warning != lastNetworkWarning)
             {
@@ -152,18 +164,25 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
             {
                 lastNetworkWarning = null;
             }
+            info = new PairingInfo(invitation.Code, serverAddress, pairingUri, networkWarning);
         }
 
-        PairingChanged?.Invoke(new PairingInfo(pairingCode.CurrentCode, serverAddress, pairingUri, Settings.Port, networkWarning));
+        PairingChanged?.Invoke(info);
     }
 
-    private void OnHello(string deviceId, string deviceName, string remoteEndpoint)
+    private void OnHello(string deviceId, string deviceName, string remoteEndpoint, bool rememberedSession)
     {
         lock (stateLock)
         {
             var device = GetOrCreateDevice(deviceId);
             device.DeviceName = deviceName;
-            device.State = "Connected";
+            device.IsPaired = pairing.Find(deviceId) != null;
+            if (rememberedSession && device.IsPaired)
+            {
+                try { pairing.Seen(deviceId); }
+                catch (IOException) { log.Warn("Could not update paired device last-seen time."); }
+            }
+            device.State = rememberedSession ? "Connected" : "Temporary";
             device.LastSeen = DateTime.Now;
             device.LastSequence = 0;
             RaiseDevicesChanged();
@@ -223,9 +242,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         lock (stateLock)
         {
-            var device = GetOrCreateDevice(deviceId);
-            device.State = "Disconnected";
-            device.LastSeen = DateTime.Now;
+            devices.Remove(deviceId);
 
             if (activeDeviceId == deviceId)
             {
@@ -247,8 +264,22 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         return created;
     }
 
-    private IReadOnlyList<DeviceState> GetDevicesSnapshot() =>
-        devices.Values.OrderByDescending(x => x.LastSeen).ToList();
+    private IReadOnlyList<DeviceState> GetDevicesSnapshot()
+    {
+        var all = pairing.GetDevices().ToDictionary(x => x.DeviceId, x => new DeviceState
+        {
+            DeviceId = x.DeviceId, DeviceName = x.DeviceName, State = "Disconnected",
+            IsPaired = true, LastSeen = x.LastSeen.LocalDateTime,
+        });
+        foreach (var active in devices.Values)
+            all[active.DeviceId] = new DeviceState
+            {
+                DeviceId = active.DeviceId, DeviceName = active.DeviceName, State = active.State,
+                IsPaired = active.IsPaired, CurrentApp = active.CurrentApp,
+                LastSeen = active.LastSeen, LastSequence = active.LastSequence,
+            };
+        return all.Values.OrderByDescending(x => x.LastSeen).ToList();
+    }
 
     private void RaiseDevicesChanged() => DevicesChanged?.Invoke(GetDevicesSnapshot());
 

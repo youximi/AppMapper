@@ -82,6 +82,10 @@
                                      IsChecked="{Binding CloseToTray, Mode=TwoWay}"
                                      Margin="0,0,0,12" />
 
+                    <ui:ToggleSwitch Content="开机自启"
+                                     IsChecked="{Binding StartWithWindows, Mode=TwoWay}"
+                                     Margin="0,0,0,12" />
+
                     <!-- 显示侧栏文字 -->
                     <ui:ToggleSwitch Content="显示侧栏文字（折叠为纯图标）"
                                      IsChecked="{Binding PaneOpen, Mode=TwoWay}"

@@ -23,11 +23,12 @@
                                Visibility="{Binding HasNetworkWarning, Converter={StaticResource BooleanToVisibilityConverter}}"
                                Margin="0,-8,0,16" />
 
-                    <TextBlock Text="配对验证码（每 60 秒刷新）" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{Binding PairingCode}" FontSize="48" FontWeight="Bold" Margin="0,4,0,16" />
+                    <TextBlock Text="临时连接验证码（每 60 秒刷新）" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding PairingCode}" FontSize="48" FontWeight="Bold" Margin="0,4,0,12" />
+                    <TextBlock Text="扫码记住设备" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,8" />
 
                     <Border Background="White" CornerRadius="6" Padding="8" HorizontalAlignment="Left">
-                        <Image Source="{Binding QrImage}" Width="220" Height="220" Stretch="Uniform" />
+                        <Image Source="{Binding QrImage}" Width="280" Height="280" Stretch="Uniform" />
                     </Border>
                 </StackPanel>
             </Border>
@@ -37,7 +38,7 @@
             <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                     BorderThickness="1" CornerRadius="8">
-                <ListView ItemsSource="{Binding Devices}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+                <ListView ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Auto">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="设备" DisplayMemberBinding="{Binding DeviceName}" Width="140" />
@@ -49,6 +50,7 @@
                     </ListView.View>
                 </ListView>
             </Border>
+            <ui:Button Content="移除选中手机" IsEnabled="{Binding SelectedDevice.IsPaired, TargetNullValue=False}" Command="{Binding RemoveSelectedCommand}" Margin="0,12,0,0" HorizontalAlignment="Left" />
         </StackPanel>
     </ScrollViewer>
 </Page>

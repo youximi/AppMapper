@@ -30,3 +30,4 @@ release-notes.md
 
 windowsApp/**/logs/
 windowsApp/**/config/settings.json
+windowsApp/**/config/pairing.dat
