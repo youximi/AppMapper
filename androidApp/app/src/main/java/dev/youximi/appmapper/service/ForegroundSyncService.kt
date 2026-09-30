@@ -39,6 +39,7 @@ import java.io.IOException
 
 object SyncStatus {
     val text = MutableStateFlow("未连接")
+    val isRunning = MutableStateFlow(false)
 }
 
 class ForegroundSyncService : Service() {
@@ -68,6 +69,7 @@ class ForegroundSyncService : Service() {
                 .setOngoing(true)
                 .build(),
         )
+        SyncStatus.isRunning.value = true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -122,6 +124,7 @@ class ForegroundSyncService : Service() {
     }
 
     override fun onDestroy() {
+        SyncStatus.isRunning.value = false
         syncJob?.cancel()
         client.close()
         activeSession = null

@@ -190,6 +190,8 @@ jobs:
             -o dist\windows
 
           Copy-Item windowsApp\mapper\bin\Release\mapper-template.exe dist\windows\
+          Copy-Item LICENSE dist\windows\LICENSE
+          Copy-Item THIRD_PARTY_LICENSES.md dist\windows\THIRD_PARTY_LICENSES.md
 
       - name: Package release assets
         run: |
@@ -231,6 +233,7 @@ jobs:
           }
 
           $releaseType = if ($env:IS_PRERELEASE -eq "true") { "Experiment Build" } else { "Release Build" }
+          $sourceArchive = "${{ github.server_url }}/${{ github.repository }}/archive/$env:GITHUB_SHA.zip"
 
           $notes = @(
             $releaseType,
@@ -247,6 +250,9 @@ jobs:
           $notes += $changes -split "`r?`n"
           $notes += ""
           $notes += "Full Comparison: $comparison"
+          $notes += ""
+          $notes += "Corresponding source ($env:GITHUB_SHA): $sourceArchive"
+          $notes += "License texts: included in the Android app (Settings > Open-source licenses) and in the Windows ZIP."
 
           Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
 
