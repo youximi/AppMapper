@@ -30,7 +30,7 @@ val syncLicenseAssets = tasks.register<Sync>("syncLicenseAssets") {
 
 android {
     namespace = "dev.youximi.appmapper"
-    compileSdk = 35
+    compileSdk = 37
     buildToolsVersion = "36.0.0"
     sourceSets.getByName("main").assets.srcDir(licenseAssets.get().asFile)
 
@@ -48,7 +48,7 @@ android {
     defaultConfig {
         applicationId = "dev.youximi.appmapper"
         minSdk = 33
-        targetSdk = 35
+        targetSdk = 37
         versionCode = appVersionCode.get()
         versionName = appVersionName.get()
     }

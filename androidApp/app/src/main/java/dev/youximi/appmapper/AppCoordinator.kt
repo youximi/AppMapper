@@ -1,7 +1,14 @@
 package dev.youximi.appmapper
 
+import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.core.content.ContextCompat
 import dev.youximi.appmapper.data.AppLogger
 import dev.youximi.appmapper.data.PairedComputer
 import dev.youximi.appmapper.data.PairingStore
@@ -21,6 +28,7 @@ class AppCoordinator(
         pairedComputer = runCatching { pairing.read() }.getOrNull(),
         pollingMs = settings.getPollingMs(),
         hasUsageAccess = usageReader.hasUsageAccess(),
+        hasLocalNetworkAccess = hasLocalNetworkAccess(activity),
     )
 
     fun pair(request: PairingRequest) {
@@ -38,6 +46,11 @@ class AppCoordinator(
 
     fun openUsageAccessSettings() {
         activity.startActivity(usageReader.usageAccessIntent())
+    }
+
+    fun openAppPermissionSettings() {
+        activity.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", activity.packageName, null)))
     }
 
     fun startService() = ForegroundSyncService.start(activity)
@@ -60,4 +73,9 @@ data class AppState(
     val pairedComputer: PairedComputer?,
     val pollingMs: Long,
     val hasUsageAccess: Boolean,
+    val hasLocalNetworkAccess: Boolean,
 )
+
+internal fun hasLocalNetworkAccess(context: Context): Boolean =
+    Build.VERSION.SDK_INT < 37 || ContextCompat.checkSelfPermission(context,
+        Manifest.permission.ACCESS_LOCAL_NETWORK) == PackageManager.PERMISSION_GRANTED

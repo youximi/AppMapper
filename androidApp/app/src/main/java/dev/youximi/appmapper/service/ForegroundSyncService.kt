@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import dev.youximi.appmapper.R
+import dev.youximi.appmapper.hasLocalNetworkAccess
 import dev.youximi.appmapper.data.ActiveApp
 import dev.youximi.appmapper.data.AppLogger
 import dev.youximi.appmapper.data.CurrentAppResult
@@ -38,6 +39,7 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 
 object SyncStatus {
+    const val LocalNetworkPermissionRequired = "未获局域网访问权限，请允许后连接"
     val text = MutableStateFlow("未连接")
     val isRunning = MutableStateFlow(false)
 }
@@ -81,7 +83,8 @@ class ForegroundSyncService : Service() {
                 val store = PairingStore(this@ForegroundSyncService)
                 try {
                     val saved = store.read()
-                    if (activeSession == SessionKind.Remembered && client.isConnected)
+                    if (activeSession == SessionKind.Remembered && client.isConnected &&
+                        hasLocalNetworkAccess(this@ForegroundSyncService))
                         runCatching { client.send(forgetJson()) }
                     client.close()
                     activeSession = null
@@ -98,6 +101,10 @@ class ForegroundSyncService : Service() {
                     stopSelf()
                 }
             }
+            return START_NOT_STICKY
+        }
+        if (!hasLocalNetworkAccess(this)) {
+            stopForMissingLocalNetworkPermission()
             return START_NOT_STICKY
         }
         if (intent?.action == ActionPair) {
@@ -134,6 +141,18 @@ class ForegroundSyncService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    private fun stopForMissingLocalNetworkPermission() {
+        waitingForUser = true
+        pendingRequest = null
+        client.close()
+        activeSession = null
+        syncJob?.cancel()
+        SyncStatus.isRunning.value = false
+        SyncStatus.text.value = SyncStatus.LocalNetworkPermissionRequired
+        AppLogger.write(this, "Local network permission is missing; sync stopped.")
+        stopSelf()
+    }
+
     private suspend fun runSyncLoop() {
         val settings = SettingsStore(this)
         val store = PairingStore(this)
@@ -144,6 +163,10 @@ class ForegroundSyncService : Service() {
         var retryMs = 1000L
 
         while (currentCoroutineContext().isActive) {
+            if (!hasLocalNetworkAccess(this)) {
+                stopForMissingLocalNetworkPermission()
+                return
+            }
             if (waitingForUser && pendingRequest == null) {
                 delay(1000)
                 continue
@@ -174,7 +197,7 @@ class ForegroundSyncService : Service() {
                                     keyAlias!!, ack.optString("serverName", "AppMapper"))
                                 try { store.save(computer) }
                                 catch (_: Exception) {
-                                    runCatching { client.send(forgetJson()) }
+                                    if (hasLocalNetworkAccess(this)) runCatching { client.send(forgetJson()) }
                                     throw PairingRejected("device_storage_failed")
                                 }
                                 keyAlias = null
@@ -204,6 +227,10 @@ class ForegroundSyncService : Service() {
                     retryMs = 1000L
                 }
 
+                if (!hasLocalNetworkAccess(this)) {
+                    stopForMissingLocalNetworkPermission()
+                    return
+                }
                 val idleReason = currentIdleReason()
                 val hasUsageAccess = reader.hasUsageAccess()
                 if (!hasUsageAccess && idleReason == null && !missingUsageAccessLogged) {
@@ -244,6 +271,10 @@ class ForegroundSyncService : Service() {
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (rejected: PairingRejected) {
+                if (!hasLocalNetworkAccess(this)) {
+                    stopForMissingLocalNetworkPermission()
+                    return
+                }
                 val wasTemporary = activeSession == SessionKind.Temporary ||
                     pendingRequest is PairingRequest.Temporary
                 client.close()
@@ -280,6 +311,10 @@ class ForegroundSyncService : Service() {
                 }
                 AppLogger.write(this, "Pairing rejected: ${rejected.reason}.")
             } catch (failure: Exception) {
+                if (!hasLocalNetworkAccess(this)) {
+                    stopForMissingLocalNetworkPermission()
+                    return
+                }
                 val wasTemporary = activeSession == SessionKind.Temporary
                 client.close()
                 activeSession = null
@@ -361,6 +396,7 @@ class ForegroundSyncService : Service() {
         private const val ActionStart = "dev.youximi.appmapper.START"
 
         fun pair(context: Context, request: PairingRequest) {
+            if (!canStart(context)) return
             context.startForegroundService(Intent(context, ForegroundSyncService::class.java).apply {
                 action = ActionPair
                 putExtra("host", request.host)
@@ -381,6 +417,7 @@ class ForegroundSyncService : Service() {
         }
 
         fun start(context: Context) {
+            if (!canStart(context)) return
             context.startForegroundService(Intent(context, ForegroundSyncService::class.java).apply {
                 action = ActionStart
             })
@@ -388,6 +425,12 @@ class ForegroundSyncService : Service() {
 
         fun forget(context: Context) {
             context.startService(Intent(context, ForegroundSyncService::class.java).apply { action = ActionForget })
+        }
+
+        private fun canStart(context: Context): Boolean {
+            if (hasLocalNetworkAccess(context)) return true
+            SyncStatus.text.value = SyncStatus.LocalNetworkPermissionRequired
+            return false
         }
 
         fun stop(context: Context) {

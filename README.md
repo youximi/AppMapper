@@ -50,7 +50,7 @@ Android 端勾选「记住设备」后扫描二维码绑定；二维码中的公
 
 ## 前置环境
 
-- **Android 客户端**：JDK 17/21、Android SDK Platform 35、Android Studio（或直接用项目自带的 Gradle Wrapper）。
+- **Android 客户端**：JDK 17/21、Android SDK Platform 37.0、Build Tools 36.0.0、Android Studio Panda 3（2025.3.3 Patch 1）或更高版本（也可直接使用项目自带的 Gradle Wrapper）。最低运行系统仍为 Android 13。
 - **Windows 总控端**：.NET 8 SDK。
 - **Windows 映射端**：Visual Studio Build Tools，需勾选"使用 C++ 的桌面开发"和 Windows SDK。
 
@@ -86,7 +86,7 @@ msbuild windowsApp\mapper\AppMapper.Mapper.vcxproj /p:Configuration=Release /p:P
 2. 确认 `mapper-template.exe` 已放在总控端 exe 同级目录（见上节构建说明）。
 3. 手机和电脑接入**同一局域网**。
 4. 在手机上安装并打开 Android 客户端，按提示授予"使用情况访问"权限（`PACKAGE_USAGE_STATS`）。
-5. 勾选「记住设备」并扫描总控端二维码完成绑定；无摄像头时取消勾选，手动输入 IP、端口、验证码进行临时连接。
+5. 勾选「记住设备」并扫描总控端二维码完成绑定；无摄像头时取消勾选，手动输入 IP、端口、验证码进行临时连接。Android 17 及以上会在扫码或连接时申请局域网访问权限，请允许后继续。
 6. 在手机上切换到任意前台 App，电脑任务栏会出现对应的映射窗口；回到桌面 / 锁屏 / 熄屏时窗口自动关闭。
 
 ## 权限说明
@@ -96,6 +96,7 @@ Android 客户端需要以下权限，全部用于核心功能：
 | 权限                                                    | 用途               |
 |-------------------------------------------------------|------------------|
 | `INTERNET` / `ACCESS_NETWORK_STATE`                   | 局域网 TLS 连接       |
+| `ACCESS_LOCAL_NETWORK`                               | Android 17 及以上的局域网访问（运行时授权） |
 | `CAMERA`                                              | 扫描配对二维码          |
 | `PACKAGE_USAGE_STATS`                                 | 读取当前前台 App（核心功能） |
 | `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_CONNECTED_DEVICE` | 保持设备连接和后台同步 |

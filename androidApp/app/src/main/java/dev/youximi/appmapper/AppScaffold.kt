@@ -1,6 +1,7 @@
 package dev.youximi.appmapper
 
 import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -34,6 +36,7 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -48,11 +51,13 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -78,12 +83,72 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var pollingMs by rememberSaveable(appState.pollingMs) { mutableStateOf(appState.pollingMs) }
     var scanError by rememberSaveable { mutableStateOf("") }
-    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var showPermissionDialog by rememberSaveable { mutableStateOf(false) }
+
+    fun completePendingAction() {
+        val action = pendingAction
+        pendingAction = null
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) action?.invoke()
+    }
+
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        // A foreground service can run even when notification permission is denied.
+        completePendingAction()
+    }
+    val localNetworkPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            SyncStatus.text.value = "等待连接"
+            completePendingAction()
+        } else {
+            pendingAction = null
+            SyncStatus.text.value = SyncStatus.LocalNetworkPermissionRequired
+            showPermissionDialog = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+        }
+    }
     val pageState = rememberSaveableStateHolder()
 
+    fun requestNotifications(action: () -> Unit) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED) {
+            action()
+        } else {
+            pendingAction = action
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    fun requestLocalNetwork(action: () -> Unit) {
+        if (pendingAction != null) return
+        if (hasLocalNetworkAccess(context)) {
+            action()
+        } else {
+            pendingAction = action
+            localNetworkPermission.launch(Manifest.permission.ACCESS_LOCAL_NETWORK)
+        }
+    }
+
     fun pair(request: PairingRequest) {
-        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        coordinator.pair(request)
+        requestLocalNetwork { requestNotifications { coordinator.pair(request) } }
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = { Text("需要局域网访问权限") },
+            text = { Text("连接电脑需要局域网访问权限。可在应用权限设置中允许后，再点击连接；已有配对会保留。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionDialog = false
+                    coordinator.openAppPermissionSettings()
+                }) { Text("应用权限设置") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) { Text("取消") }
+            },
+        )
     }
 
     BackHandler(enabled = rootPage != RootPage.Main) { rootPage = RootPage.Main }
@@ -163,17 +228,19 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
                                         when (tab) {
                                             MainTab.Home -> HomeScreen(
                                                 pairedComputer = appState.pairedComputer,
-                                                connectionStatus = connectionStatus,
+                                                connectionStatus = if (appState.hasLocalNetworkAccess) connectionStatus
+                                                    else SyncStatus.LocalNetworkPermissionRequired,
                                                 isSyncRunning = isSyncRunning,
                                                 scanError = scanError,
                                                 onScan = {
-                                                    scanError = ""
-                                                    rootPage = RootPage.Scanner
+                                                    requestLocalNetwork {
+                                                        scanError = ""
+                                                        rootPage = RootPage.Scanner
+                                                    }
                                                 },
                                                 onPair = ::pair,
                                                 onStart = {
-                                                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                                    coordinator.startService()
+                                                    requestLocalNetwork { requestNotifications { coordinator.startService() } }
                                                 },
                                                 onStop = coordinator::stopService,
                                             )
