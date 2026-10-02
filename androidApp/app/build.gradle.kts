@@ -47,7 +47,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.youximi.appmapper"
-        minSdk = 33
+        minSdk = 26
         targetSdk = 37
         versionCode = appVersionCode.get()
         versionName = appVersionName.get()

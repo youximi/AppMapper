@@ -24,7 +24,7 @@ AppMapper/
 
 ## 技术栈
 
-- **Android 客户端**：Kotlin、Jetpack Compose、Material3、前台服务、`UsageStatsManager`。最低 Android 13。
+- **Android 客户端**：Kotlin、Jetpack Compose、Material3、前台服务、`UsageStatsManager`。最低 Android 8.0。
 - **Windows 总控端**：C# WPF（.NET 8）、TLS 服务器、二维码配对、映射进程管理。
 - **Windows 映射端**：C++ Win32，128×128 分层置顶窗口，不联网。
 - **传输协议**：局域网 TLS + JSON Lines（每条消息一行 JSON），协议版本 2。
@@ -50,7 +50,7 @@ Android 端勾选「记住设备」后扫描二维码绑定；二维码中的公
 
 ## 前置环境
 
-- **Android 客户端**：JDK 17/21、Android SDK Platform 37.0、Build Tools 36.0.0、Android Studio Panda 3（2025.3.3 Patch 1）或更高版本（也可直接使用项目自带的 Gradle Wrapper）。最低运行系统仍为 Android 13。
+- **Android 客户端**：JDK 17/21、Android SDK Platform 37.0、Build Tools 36.0.0、Android Studio Panda 3（2025.3.3 Patch 1）或更高版本（也可直接使用项目自带的 Gradle Wrapper）。最低运行系统为 Android 8.0。
 - **Windows 总控端**：.NET 8 SDK。
 - **Windows 映射端**：Visual Studio Build Tools，需勾选"使用 C++ 的桌面开发"和 Windows SDK。
 
@@ -101,7 +101,7 @@ Android 客户端需要以下权限，全部用于核心功能：
 | `PACKAGE_USAGE_STATS`                                 | 读取当前前台 App（核心功能） |
 | `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_CONNECTED_DEVICE` | 保持设备连接和后台同步 |
 | `CHANGE_WIFI_MULTICAST_STATE` | 满足 Android 连接设备前台服务的权限要求 |
-| `POST_NOTIFICATIONS`                                  | 前台服务通知           |
+| `POST_NOTIFICATIONS`                                  | Android 13 及以上的通知运行时权限；拒绝不阻止前台服务启动 |
 
 
 ## 隐私与安全

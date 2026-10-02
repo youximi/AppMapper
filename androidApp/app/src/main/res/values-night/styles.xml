@@ -3,8 +3,7 @@
     <style name="AppTheme" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:windowNoTitle">true</item>
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowBackground">@android:color/system_neutral1_900</item>
-        <item name="android:windowSplashScreenBackground">@android:color/system_neutral1_900</item>
-        <item name="android:colorAccent">@android:color/system_accent1_200</item>
+        <item name="android:windowBackground">#141218</item>
+        <item name="android:colorAccent">#D0BCFF</item>
     </style>
 </resources>
