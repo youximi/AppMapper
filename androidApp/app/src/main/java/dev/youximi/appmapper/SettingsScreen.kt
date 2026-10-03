@@ -1,5 +1,6 @@
 package dev.youximi.appmapper
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,14 +11,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
@@ -35,11 +44,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -66,6 +77,10 @@ import dev.youximi.appmapper.data.PairedComputer
 internal fun SettingsScreen(
     hasUsageAccess: Boolean,
     pollingMs: Long,
+    dynamicColorEnabled: Boolean,
+    themeColor: AppThemeColor,
+    onDynamicColorChanged: (Boolean) -> Unit,
+    onThemeColorSelected: (AppThemeColor) -> Unit,
     onOpenUsageAccess: () -> Unit,
     onPollingSelected: (Long) -> Unit,
     onOpenLogs: () -> Unit,
@@ -74,12 +89,20 @@ internal fun SettingsScreen(
     onForgetComputer: () -> Unit,
 ) {
     var confirmForget by rememberSaveable { mutableStateOf(false) }
+    var showThemePicker by rememberSaveable { mutableStateOf(false) }
+    val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useDynamicColor = dynamicColorAvailable && dynamicColorEnabled
     val pollingOptions = listOf(
         PollingOption("快速", 500L, "每 0.5 秒检测一次，响应更及时"),
         PollingOption("标准", 1000L, "每 1 秒检测一次，兼顾响应与耗电"),
         PollingOption("省电", 3000L, "每 3 秒检测一次，减少后台查询"),
     )
     val rowColors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    val disabledRowColors = ListItemDefaults.colors(
+        containerColor = Color.Transparent,
+        headlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        trailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+    )
     val groupColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
 
     ScreenContent {
@@ -95,6 +118,44 @@ internal fun SettingsScreen(
                         Icon(if (hasUsageAccess) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
                             contentDescription = null,
                             tint = if (hasUsageAccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
+                    },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                )
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionTitle("外观")
+            Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
+                ListItem(
+                    modifier = Modifier.toggleable(
+                        value = useDynamicColor,
+                        enabled = dynamicColorAvailable,
+                        role = Role.Switch,
+                        onValueChange = onDynamicColorChanged,
+                    ),
+                    colors = if (dynamicColorAvailable) rowColors else disabledRowColors,
+                    headlineContent = { Text("莫奈取色") },
+                    supportingContent = {
+                        Text(when {
+                            !dynamicColorAvailable -> "需要 Android 12 或更高版本"
+                            useDynamicColor -> "使用系统壁纸与配色生成的主题色"
+                            else -> "使用下方选择的自定义主题色"
+                        })
+                    },
+                    trailingContent = {
+                        Switch(checked = useDynamicColor, onCheckedChange = null, enabled = dynamicColorAvailable)
+                    },
+                )
+                ListItem(
+                    modifier = Modifier.clickable(enabled = !useDynamicColor, role = Role.Button) {
+                        showThemePicker = true
+                    },
+                    colors = if (useDynamicColor) disabledRowColors else rowColors,
+                    headlineContent = { Text("自定义主题色") },
+                    supportingContent = {
+                        Text(if (useDynamicColor) "关闭莫奈取色后可选择（已保存：${themeColor.label}）"
+                            else "当前：${themeColor.label}")
                     },
                     trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
                 )
@@ -168,6 +229,34 @@ internal fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (showThemePicker && !useDynamicColor) {
+        AlertDialog(
+            onDismissRequest = { showThemePicker = false },
+            title = { Text("自定义主题色") },
+            text = {
+                Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
+                    AppThemeColor.entries.forEach { option ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                .selectable(selected = themeColor == option, role = Role.RadioButton, onClick = {
+                                    onThemeColorSelected(option)
+                                    showThemePicker = false
+                                })
+                                .padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            RadioButton(selected = themeColor == option, onClick = null)
+                            Surface(modifier = Modifier.size(24.dp), shape = CircleShape, color = option.light.primary) {}
+                            Text(option.label)
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showThemePicker = false }) { Text("取消") } },
+        )
     }
 
     if (confirmForget && pairedComputer != null) {

@@ -18,6 +18,18 @@ class SettingsStore(context: Context) {
         prefs.edit().putLong("pollingMs", value).apply()
     }
 
+    fun getDynamicColorEnabled(): Boolean = prefs.getBoolean("dynamicColorEnabled", true)
+
+    fun saveDynamicColorEnabled(value: Boolean) {
+        prefs.edit().putBoolean("dynamicColorEnabled", value).apply()
+    }
+
+    fun getThemeColor(): String? = prefs.getString("themeColor", null)
+
+    fun saveThemeColor(value: String) {
+        prefs.edit().putString("themeColor", value).apply()
+    }
+
     fun getDeviceId(): String {
         val existing = prefs.getString("deviceId", null)
         if (existing != null) return existing

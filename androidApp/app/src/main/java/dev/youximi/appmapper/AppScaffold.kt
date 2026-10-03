@@ -76,7 +76,13 @@ private enum class RootPage { Main, Logs, Scanner, Licenses }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AppScaffold(coordinator: AppCoordinator) {
+internal fun AppScaffold(
+    coordinator: AppCoordinator,
+    dynamicColorEnabled: Boolean,
+    themeColor: AppThemeColor,
+    onDynamicColorChanged: (Boolean) -> Unit,
+    onThemeColorSelected: (AppThemeColor) -> Unit,
+) {
     val connectionStatus by SyncStatus.text.collectAsStateWithLifecycle()
     val isSyncRunning by SyncStatus.isRunning.collectAsStateWithLifecycle()
     val appState by rememberAppState(coordinator, connectionStatus)
@@ -249,6 +255,10 @@ internal fun AppScaffold(coordinator: AppCoordinator) {
                                             MainTab.Settings -> SettingsScreen(
                                                 hasUsageAccess = appState.hasUsageAccess,
                                                 pollingMs = pollingMs,
+                                                dynamicColorEnabled = dynamicColorEnabled,
+                                                themeColor = themeColor,
+                                                onDynamicColorChanged = onDynamicColorChanged,
+                                                onThemeColorSelected = onThemeColorSelected,
                                                 onOpenUsageAccess = coordinator::openUsageAccessSettings,
                                                 onPollingSelected = {
                                                     pollingMs = it
