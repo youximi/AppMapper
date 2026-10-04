@@ -35,6 +35,8 @@ public partial class App : Application
             return;
         }
 
+        Wpf.Ui.Appearance.ApplicationThemeManager.Apply(Wpf.Ui.Appearance.ApplicationTheme.Light);
+
         var baseDir = AppContext.BaseDirectory;
         var log = new LogService(baseDir);
         var settings = new SettingsService(baseDir);

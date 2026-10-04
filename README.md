@@ -46,7 +46,7 @@ appmapper://connect?host=192.168.1.10&port=8765&serverId=<电脑ID>&fingerprint=
 
 Android 端勾选「记住设备」后扫描二维码绑定；二维码中的公钥指纹用于验证电脑身份，一次性令牌授权长期配对。手机使用 Android Keystore 中的设备密钥应答电脑的一次性挑战；验证码刷新、短暂断网、电脑重启后会自动重连。没有摄像头时，可取消「记住设备」，手动输入 IP、端口和 6 位验证码进行临时连接。临时连接不会保存配对，断线后需重新输入验证码，也不会清除已有的长期配对。手机需保持同步前台服务运行，电脑需要运行总控端；电脑端可在设置中开启「开机自启」（Windows 登录后启动到托盘）。手机重启后需打开 App 并启动同步，本次没有加入手机开机自启。
 
-电脑「配对」页可以移除手机，手机「设置」页可以忘记电脑；之后要重新扫码。断线后手机只会按已保存的地址重试。电脑 IP 或端口变化时，请在手机上重新扫描电脑当前的配对二维码。
+电脑「设备」页可以查看设备状态和移除手机，手机「设置」页可以忘记电脑；之后要重新扫码。断线后手机只会按已保存的地址重试。电脑 IP 或端口变化时，请在手机上重新扫描电脑当前的配对二维码。
 
 ## 前置环境
 
@@ -98,7 +98,7 @@ Android 客户端需要以下权限，全部用于核心功能：
 | `INTERNET` / `ACCESS_NETWORK_STATE`                   | 局域网 TLS 连接       |
 | `ACCESS_LOCAL_NETWORK`                               | Android 17 及以上的局域网访问（运行时授权） |
 | `CAMERA`                                              | 扫描配对二维码          |
-| `PACKAGE_USAGE_STATS`                                 | 读取当前前台 App（核心功能） |
+| `PACKAGE_USAGE_STATS`                                 | 读取当前前台 App |
 | `FOREGROUND_SERVICE` / `FOREGROUND_SERVICE_CONNECTED_DEVICE` | 保持设备连接和后台同步 |
 | `CHANGE_WIFI_MULTICAST_STATE` | 满足 Android 连接设备前台服务的权限要求 |
 | `POST_NOTIFICATIONS`                                  | Android 13 及以上的通知运行时权限；拒绝不阻止前台服务启动 |

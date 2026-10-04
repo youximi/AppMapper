@@ -33,6 +33,11 @@
                         <ui:SymbolIcon Symbol="Document24" />
                     </ui:NavigationViewItem.Icon>
                 </ui:NavigationViewItem>
+                <ui:NavigationViewItem Content="设备" TargetPageType="{x:Type views:DevicesPage}" NavigationCacheMode="Required">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="Phone24" />
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
                 <ui:NavigationViewItem Content="设置" TargetPageType="{x:Type views:SettingsPage}" NavigationCacheMode="Required">
                     <ui:NavigationViewItem.Icon>
                         <ui:SymbolIcon Symbol="Settings24" />
@@ -57,7 +62,6 @@
 
         <ui:TitleBar x:Name="AppTitleBar"
                      Title="AppMapper"
-                     Icon="{ui:SymbolIcon Fluent24}"
                      ShowMinimize="True"
                      ShowMaximize="True"
                      ShowClose="True" />
