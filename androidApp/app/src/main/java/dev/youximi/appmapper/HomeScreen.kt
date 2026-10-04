@@ -79,15 +79,19 @@ import com.journeyapps.barcodescanner.CameraPreview
 import com.journeyapps.barcodescanner.DefaultDecoderFactory
 import dev.youximi.appmapper.data.PairedComputer
 import dev.youximi.appmapper.data.PairingRequest
+import dev.youximi.appmapper.service.ConnectionPhase
+import dev.youximi.appmapper.service.ConnectionState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
     pairedComputer: PairedComputer?,
-    connectionStatus: String,
+    savedComputerCount: Int,
+    connection: ConnectionState,
     isSyncRunning: Boolean,
     scanError: String,
     onScan: () -> Unit,
+    onOpenDevices: () -> Unit,
     onPair: (PairingRequest) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -96,7 +100,7 @@ internal fun HomeScreen(
     var port by rememberSaveable { mutableStateOf("8765") }
     var code by remember { mutableStateOf("") }
     var useQrCode by rememberSaveable { mutableStateOf(true) }
-    var showPairing by rememberSaveable(pairedComputer != null) { mutableStateOf(pairedComputer == null) }
+    var showPairing by rememberSaveable(savedComputerCount > 0) { mutableStateOf(savedComputerCount == 0) }
     var submitted by rememberSaveable { mutableStateOf(false) }
     val hostInvalid = host.isBlank()
     val portInvalid = port.toIntOrNull()?.let { it !in 1..65535 } ?: true
@@ -113,16 +117,19 @@ internal fun HomeScreen(
     ScreenContent {
         ConnectionCard(
             pairedComputer = pairedComputer,
-            connectionStatus = connectionStatus,
+            connection = connection,
             isSyncRunning = isSyncRunning,
             onStart = onStart,
             onStop = onStop,
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (pairedComputer != null) {
+            if (savedComputerCount > 0) {
+                TextButton(onClick = onOpenDevices) {
+                    Text(if (pairedComputer == null) "选择已保存的电脑" else "切换或管理电脑")
+                }
                 TextButton(onClick = { showPairing = !showPairing }) {
-                    Text(if (showPairing) "收起配对选项" else "连接其他电脑")
+                    Text(if (showPairing) "收起配对选项" else "添加电脑或临时连接")
                 }
             } else {
                 SectionTitle("开始连接")
@@ -226,7 +233,7 @@ internal fun HomeScreen(
 @Composable
 private fun ConnectionCard(
     pairedComputer: PairedComputer?,
-    connectionStatus: String,
+    connection: ConnectionState,
     isSyncRunning: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -247,14 +254,28 @@ private fun ConnectionCard(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.weight(1f)) {
                     Text("连接状态", style = MaterialTheme.typography.labelLarge)
-                    Text(connectionStatus,
+                    Text(connection.message,
                         modifier = Modifier.semantics { heading(); liveRegion = LiveRegionMode.Polite },
                         style = MaterialTheme.typography.headlineSmall)
                 }
             }
+            if (connection.isTemporary && connection.host != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("临时连接地址", style = MaterialTheme.typography.labelMedium)
+                    Text("${connection.host}:${connection.port}", style = MaterialTheme.typography.bodyMedium)
+                }
+            } else if (connection.phase == ConnectionPhase.Failed && connection.host != null &&
+                connection.serverId != pairedComputer?.serverId) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("本次连接地址", style = MaterialTheme.typography.labelMedium)
+                    Text("${connection.host}:${connection.port}", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             if (pairedComputer != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("已保存的电脑", style = MaterialTheme.typography.labelMedium)
+                    Text(if (!connection.isTemporary && connection.serverId == pairedComputer.serverId &&
+                        connection.phase == ConnectionPhase.Connected) "当前电脑" else "默认连接目标",
+                        style = MaterialTheme.typography.labelMedium)
                     Text(pairedComputer.name, style = MaterialTheme.typography.titleMedium)
                     Text("${pairedComputer.host}:${pairedComputer.port}", style = MaterialTheme.typography.bodyMedium)
                 }
@@ -268,7 +289,7 @@ private fun ConnectionCard(
                 }
             } else if (pairedComputer != null) {
                 Button(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), onClick = onStart) {
-                    Text("连接已配对电脑")
+                    Text(if (connection.phase == ConnectionPhase.Failed) "重试连接" else "连接默认电脑")
                 }
             }
         }

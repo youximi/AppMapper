@@ -10,12 +10,15 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import dev.youximi.appmapper.data.AppLogger
-import dev.youximi.appmapper.data.PairedComputer
+import dev.youximi.appmapper.data.DeviceKeyStore
+import dev.youximi.appmapper.data.PairingState
 import dev.youximi.appmapper.data.PairingStore
 import dev.youximi.appmapper.data.PairingRequest
 import dev.youximi.appmapper.data.SettingsStore
 import dev.youximi.appmapper.data.UsageAppReader
 import dev.youximi.appmapper.service.ForegroundSyncService
+import dev.youximi.appmapper.service.ConnectionState
+import dev.youximi.appmapper.service.SyncStatus
 
 class AppCoordinator(
     private val activity: Activity,
@@ -24,20 +27,46 @@ class AppCoordinator(
 ) {
     private val pairing = PairingStore(activity)
 
-    fun loadInitialState(): AppState = AppState(
-        pairedComputer = runCatching { pairing.read() }.getOrNull(),
-        pollingMs = settings.getPollingMs(),
-        hasUsageAccess = usageReader.hasUsageAccess(),
-        hasLocalNetworkAccess = hasLocalNetworkAccess(activity),
-    )
+    fun loadInitialState(): AppState {
+        val saved = runCatching { pairing.read() }
+        return AppState(
+            pairing = saved.getOrDefault(PairingState()),
+            pairingError = if (saved.isFailure) "无法读取配对记录，请检查应用存储后重试" else null,
+            pollingMs = settings.getPollingMs(),
+            hasUsageAccess = usageReader.hasUsageAccess(),
+            hasLocalNetworkAccess = hasLocalNetworkAccess(activity),
+        )
+    }
 
     fun pair(request: PairingRequest) {
         AppLogger.write(activity, "Pairing requested for ${request.host}:${request.port}.")
         ForegroundSyncService.pair(activity, request)
     }
 
-    fun forgetComputer() {
-        ForegroundSyncService.forget(activity)
+    fun connectComputer(serverId: String) {
+        ForegroundSyncService.start(activity, serverId)
+    }
+
+    fun forgetComputer(serverId: String) {
+        if (SyncStatus.isRunning.value) {
+            ForegroundSyncService.forget(activity, serverId)
+            return
+        }
+        SyncStatus.operationError.value = null
+        try {
+            val wasSelected = pairing.read().selectedServerId == serverId
+            val removed = pairing.remove(serverId)
+            removed?.let {
+                runCatching { DeviceKeyStore.delete(it.keyAlias) }.onFailure { failure ->
+                    AppLogger.write(activity, "Key cleanup failed: ${failure.javaClass.simpleName}.")
+                }
+            }
+            if (wasSelected || SyncStatus.connection.value.serverId == serverId)
+                SyncStatus.connection.value = ConnectionState(message = "已忘记电脑，请选择其他电脑")
+        } catch (failure: Exception) {
+            SyncStatus.operationError.value = "忘记电脑失败，请检查应用存储后重试"
+            AppLogger.write(activity, "Forget failed: ${failure.javaClass.simpleName}.")
+        }
     }
 
     fun savePollingMs(value: Long) {
@@ -70,7 +99,8 @@ class AppCoordinator(
 }
 
 data class AppState(
-    val pairedComputer: PairedComputer?,
+    val pairing: PairingState,
+    val pairingError: String?,
     val pollingMs: Long,
     val hasUsageAccess: Boolean,
     val hasLocalNetworkAccess: Boolean,

@@ -70,7 +70,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import dev.youximi.appmapper.data.PairedComputer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,10 +84,9 @@ internal fun SettingsScreen(
     onPollingSelected: (Long) -> Unit,
     onOpenLogs: () -> Unit,
     onOpenLicenses: () -> Unit,
-    pairedComputer: PairedComputer?,
-    onForgetComputer: () -> Unit,
+    savedComputerCount: Int,
+    onOpenDevices: () -> Unit,
 ) {
-    var confirmForget by rememberSaveable { mutableStateOf(false) }
     var showThemePicker by rememberSaveable { mutableStateOf(false) }
     val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val useDynamicColor = dynamicColorAvailable && dynamicColorEnabled
@@ -185,20 +183,17 @@ internal fun SettingsScreen(
             }
         }
 
-        if (pairedComputer != null) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionTitle("已保存的电脑")
-                Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
-                    ListItem(
-                        colors = rowColors,
-                        headlineContent = { Text(pairedComputer.name) },
-                        supportingContent = { Text("${pairedComputer.host}:${pairedComputer.port}") },
-                        leadingContent = { Icon(painterResource(R.drawable.ic_computer), contentDescription = null) },
-                    )
-                    TextButton(modifier = Modifier.padding(start = 8.dp, bottom = 8.dp), onClick = { confirmForget = true }) {
-                        Text("忘记这台电脑", color = MaterialTheme.colorScheme.error)
-                    }
-                }
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SectionTitle("设备")
+            Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
+                ListItem(
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenDevices),
+                    colors = rowColors,
+                    headlineContent = { Text("设备管理") },
+                    supportingContent = { Text(if (savedComputerCount == 0) "添加电脑并管理连接目标" else "已保存 $savedComputerCount 台电脑") },
+                    leadingContent = { Icon(painterResource(R.drawable.ic_computer), contentDescription = null) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                )
             }
         }
 
@@ -259,19 +254,6 @@ internal fun SettingsScreen(
         )
     }
 
-    if (confirmForget && pairedComputer != null) {
-        AlertDialog(
-            onDismissRequest = { confirmForget = false },
-            title = { Text("忘记这台电脑？") },
-            text = { Text("将移除与“${pairedComputer.name}”的配对。下次连接需要重新扫码。") },
-            confirmButton = {
-                TextButton(onClick = { confirmForget = false; onForgetComputer() }) {
-                    Text("忘记电脑", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = { confirmForget = false }) { Text("取消") } },
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

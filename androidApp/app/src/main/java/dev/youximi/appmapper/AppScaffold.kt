@@ -65,6 +65,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.youximi.appmapper.data.PairingParser
 import dev.youximi.appmapper.data.PairingRequest
+import dev.youximi.appmapper.data.PairingStore
+import dev.youximi.appmapper.service.ConnectionPhase
+import dev.youximi.appmapper.service.ConnectionState
 import dev.youximi.appmapper.service.SyncStatus
 
 private enum class MainTab(val label: String, val icon: ImageVector, val inactiveIcon: ImageVector) {
@@ -72,7 +75,7 @@ private enum class MainTab(val label: String, val icon: ImageVector, val inactiv
     Settings("设置", Icons.Filled.Settings, Icons.Outlined.Settings),
 }
 
-private enum class RootPage { Main, Logs, Scanner, Licenses }
+private enum class RootPage { Main, Logs, Scanner, Licenses, Devices }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,13 +86,16 @@ internal fun AppScaffold(
     onDynamicColorChanged: (Boolean) -> Unit,
     onThemeColorSelected: (AppThemeColor) -> Unit,
 ) {
-    val connectionStatus by SyncStatus.text.collectAsStateWithLifecycle()
+    val connection by SyncStatus.connection.collectAsStateWithLifecycle()
+    val operationError by SyncStatus.operationError.collectAsStateWithLifecycle()
     val isSyncRunning by SyncStatus.isRunning.collectAsStateWithLifecycle()
-    val appState by rememberAppState(coordinator, connectionStatus)
+    val pairingRevision by PairingStore.changes.collectAsStateWithLifecycle()
+    val appState by rememberAppState(coordinator, pairingRevision)
     var rootPage by rememberSaveable { mutableStateOf(RootPage.Main) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var pollingMs by rememberSaveable(appState.pollingMs) { mutableStateOf(appState.pollingMs) }
     var scanError by rememberSaveable { mutableStateOf("") }
+    var scannerReturnPage by rememberSaveable { mutableStateOf(RootPage.Main) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -107,11 +113,12 @@ internal fun AppScaffold(
     }
     val localNetworkPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
-            SyncStatus.text.value = "等待连接"
+            SyncStatus.connection.value = ConnectionState(message = "等待连接")
             completePendingAction()
         } else {
             pendingAction = null
-            SyncStatus.text.value = SyncStatus.LocalNetworkPermissionRequired
+            SyncStatus.connection.value = ConnectionState(phase = ConnectionPhase.Failed,
+                message = SyncStatus.LocalNetworkPermissionRequired)
             showPermissionDialog = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
         }
     }
@@ -142,6 +149,15 @@ internal fun AppScaffold(
         requestLocalNetwork { requestNotifications { coordinator.pair(request) } }
     }
 
+    fun openScanner(returnPage: RootPage) {
+        requestLocalNetwork {
+            scanError = ""
+            SyncStatus.operationError.value = null
+            scannerReturnPage = returnPage
+            rootPage = RootPage.Scanner
+        }
+    }
+
     if (showPermissionDialog) {
         AlertDialog(
             onDismissRequest = { showPermissionDialog = false },
@@ -159,7 +175,9 @@ internal fun AppScaffold(
         )
     }
 
-    BackHandler(enabled = rootPage != RootPage.Main) { rootPage = RootPage.Main }
+    BackHandler(enabled = rootPage != RootPage.Main) {
+        rootPage = if (rootPage == RootPage.Scanner) scannerReturnPage else RootPage.Main
+    }
 
     Crossfade(targetState = rootPage, animationSpec = tween(220), label = "root page") { page ->
         pageState.SaveableStateProvider(page.name) {
@@ -167,15 +185,28 @@ internal fun AppScaffold(
                 LogsScreen(coordinator = coordinator, onBack = { rootPage = RootPage.Main })
             } else if (page == RootPage.Licenses) {
                 OpenSourceLicensesScreen(onBack = { rootPage = RootPage.Main })
+            } else if (page == RootPage.Devices) {
+                DevicesScreen(
+                    pairing = appState.pairing,
+                    connection = connection,
+                    error = scanError.takeIf { it.isNotBlank() } ?: appState.pairingError ?: operationError,
+                    onBack = { rootPage = RootPage.Main },
+                    onAdd = { openScanner(RootPage.Devices) },
+                    onConnect = { serverId ->
+                        scanError = ""
+                        requestLocalNetwork { requestNotifications { coordinator.connectComputer(serverId) } }
+                    },
+                    onForget = coordinator::forgetComputer,
+                )
             } else if (page == RootPage.Scanner) {
                 QrScannerScreen(
-                    onBack = { rootPage = RootPage.Main },
+                    onBack = { rootPage = scannerReturnPage },
                     onResult = { contents ->
                         // Crossfade retains the outgoing camera briefly after Back.
                         if (rootPage == RootPage.Scanner) {
                             val request = PairingParser.parseUri(contents)
                             scanError = if (request == null) "二维码无效或版本过旧，请扫描电脑端当前显示的配对二维码。" else ""
-                            rootPage = RootPage.Main
+                            rootPage = scannerReturnPage
                             if (request != null) pair(request)
                         }
                     },
@@ -235,16 +266,17 @@ internal fun AppScaffold(
                                     tabState.SaveableStateProvider(tab.name) {
                                         when (tab) {
                                             MainTab.Home -> HomeScreen(
-                                                pairedComputer = appState.pairedComputer,
-                                                connectionStatus = if (appState.hasLocalNetworkAccess) connectionStatus
-                                                    else SyncStatus.LocalNetworkPermissionRequired,
+                                                pairedComputer = appState.pairing.selectedComputer,
+                                                savedComputerCount = appState.pairing.computers.size,
+                                                connection = if (appState.hasLocalNetworkAccess) connection else
+                                                    connection.copy(phase = ConnectionPhase.Failed,
+                                                        message = SyncStatus.LocalNetworkPermissionRequired),
                                                 isSyncRunning = isSyncRunning,
                                                 scanError = scanError,
-                                                onScan = {
-                                                    requestLocalNetwork {
-                                                        scanError = ""
-                                                        rootPage = RootPage.Scanner
-                                                    }
+                                                onScan = { openScanner(RootPage.Main) },
+                                                onOpenDevices = {
+                                                    scanError = ""
+                                                    rootPage = RootPage.Devices
                                                 },
                                                 onPair = ::pair,
                                                 onStart = {
@@ -266,8 +298,11 @@ internal fun AppScaffold(
                                                 },
                                                 onOpenLogs = { rootPage = RootPage.Logs },
                                                 onOpenLicenses = { rootPage = RootPage.Licenses },
-                                                pairedComputer = appState.pairedComputer,
-                                                onForgetComputer = coordinator::forgetComputer,
+                                                savedComputerCount = appState.pairing.computers.size,
+                                                onOpenDevices = {
+                                                    scanError = ""
+                                                    rootPage = RootPage.Devices
+                                                },
                                             )
                                         }
                                     }
@@ -287,10 +322,10 @@ private fun TabIcon(tab: MainTab, selectedTab: MainTab) {
 }
 
 @Composable
-private fun rememberAppState(coordinator: AppCoordinator, status: String): State<AppState> {
+private fun rememberAppState(coordinator: AppCoordinator, pairingRevision: Long): State<AppState> {
     val state = remember { mutableStateOf(coordinator.loadInitialState()) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    LaunchedEffect(status) { state.value = coordinator.loadInitialState() }
+    LaunchedEffect(pairingRevision) { state.value = coordinator.loadInitialState() }
     DisposableEffect(coordinator, lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) state.value = coordinator.loadInitialState()

@@ -31,28 +31,59 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
+
+enum class ConnectionPhase { Idle, Connecting, Connected, Reconnecting, Failed }
+
+data class ConnectionState(
+    val serverId: String? = null,
+    val host: String? = null,
+    val port: Int? = null,
+    val isTemporary: Boolean = false,
+    val phase: ConnectionPhase = ConnectionPhase.Idle,
+    val message: String = "未连接",
+) {
+    val isConnecting: Boolean
+        get() = phase == ConnectionPhase.Connecting || phase == ConnectionPhase.Reconnecting
+}
 
 object SyncStatus {
     const val LocalNetworkPermissionRequired = "未获局域网访问权限，请允许后连接"
-    val text = MutableStateFlow("未连接")
+    val connection = MutableStateFlow(ConnectionState())
     val isRunning = MutableStateFlow(false)
+    val operationError = MutableStateFlow<String?>(null)
 }
 
 class ForegroundSyncService : Service() {
     private enum class SessionKind { Temporary, Remembered }
 
+    private sealed interface Command {
+        data class Start(val startId: Int, val request: PairingRequest?, val serverId: String?) : Command
+        data class Forget(val startId: Int, val serverId: String) : Command
+        data class Finished(val generation: Long) : Command
+    }
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val commands = Channel<Command>(Channel.UNLIMITED)
     private val client = TcpJsonClient()
     private var syncJob: Job? = null
-    @Volatile private var pendingRequest: PairingRequest? = null
-    @Volatile private var activeSession: SessionKind? = null
-    @Volatile private var waitingForUser = false
+    private var activeSession: SessionKind? = null
+    private var targetServerId: String? = null
+    private var generation = 0L
+    private var currentStartId = 0
     private var sequence = 0L
     private var lastAppId: String? = null
     private var lastIdleReason: String? = null
@@ -72,88 +103,156 @@ class ForegroundSyncService : Service() {
                 .build(),
         )
         SyncStatus.isRunning.value = true
+        scope.launch {
+            // Serialize commands; only the current session may stop this service.
+            for (command in commands) {
+                when (command) {
+                    is Command.Start -> {
+                        currentStartId = command.startId
+                        try {
+                            startSession(command)
+                        } catch (cancel: CancellationException) {
+                            throw cancel
+                        } catch (failure: Exception) {
+                            failConnection("无法读取或保存配对记录，请检查应用存储后重试")
+                            AppLogger.write(this@ForegroundSyncService, "Start failed: ${failure.javaClass.simpleName}.")
+                            commands.trySend(Command.Finished(generation))
+                        }
+                    }
+                    is Command.Forget -> {
+                        currentStartId = command.startId
+                        forgetComputer(command)
+                    }
+                    is Command.Finished -> if (command.generation == generation) {
+                        SyncStatus.isRunning.value = false
+                        stopSelfResult(currentStartId)
+                    }
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ActionForget) {
-            val running = syncJob
-            running?.cancel()
-            scope.launch {
-                running?.join()
-                val store = PairingStore(this@ForegroundSyncService)
-                try {
-                    val saved = store.read()
-                    if (activeSession == SessionKind.Remembered && client.isConnected &&
-                        hasLocalNetworkAccess(this@ForegroundSyncService))
-                        runCatching { client.send(forgetJson()) }
-                    client.close()
-                    activeSession = null
-                    store.clear()
-                    saved?.let { deleteKey(it.keyAlias) }
-                    pendingRequest = null
-                    waitingForUser = true
-                    SyncStatus.text.value = "已忘记电脑，需要重新扫码"
-                } catch (failure: Exception) {
-                    waitingForUser = true
-                    SyncStatus.text.value = "移除失败，请重试"
-                    AppLogger.write(this@ForegroundSyncService, "Forget failed: ${failure.javaClass.simpleName}.")
-                } finally {
-                    stopSelf()
+            intent.getStringExtra("serverId")?.let { commands.trySend(Command.Forget(startId, it)) }
+        } else {
+            val request = if (intent?.action == ActionPair) {
+                val host = intent.getStringExtra("host") ?: ""
+                val port = intent.getIntExtra("port", 8765)
+                when (intent.getStringExtra("mode")) {
+                    "temporary" -> PairingRequest.Temporary(host, port, intent.getStringExtra("code") ?: "")
+                    "remembered" -> PairingRequest.Remembered(host, port,
+                        intent.getStringExtra("serverId") ?: "", intent.getStringExtra("fingerprint") ?: "",
+                        intent.getStringExtra("enrollToken") ?: "")
+                    else -> null
                 }
-            }
-            return START_NOT_STICKY
+            } else null
+            commands.trySend(Command.Start(startId, request,
+                if (intent?.action == ActionStart) intent.getStringExtra("serverId") else null))
         }
+        return START_STICKY
+    }
+
+    private suspend fun startSession(command: Command.Start) {
+        generation += 1
+        client.close()
+        syncJob?.cancelAndJoin()
+        activeSession = null
+        targetServerId = null
+        SyncStatus.operationError.value = null
+        SyncStatus.isRunning.value = true
+        val request = command.request
+        SyncStatus.connection.value = ConnectionState(
+            serverId = (request as? PairingRequest.Remembered)?.serverId ?: command.serverId,
+            host = request?.host, port = request?.port, isTemporary = request is PairingRequest.Temporary,
+            phase = ConnectionPhase.Connecting, message = "正在连接电脑",
+        )
         if (!hasLocalNetworkAccess(this)) {
             stopForMissingLocalNetworkPermission()
-            return START_NOT_STICKY
+            commands.trySend(Command.Finished(generation))
+            return
         }
-        if (intent?.action == ActionPair) {
-            val host = intent.getStringExtra("host") ?: ""
-            val port = intent.getIntExtra("port", 8765)
-            pendingRequest = when (intent.getStringExtra("mode")) {
-                "temporary" -> PairingRequest.Temporary(host, port, intent.getStringExtra("code") ?: "")
-                "remembered" -> PairingRequest.Remembered(host, port,
-                    intent.getStringExtra("serverId") ?: "", intent.getStringExtra("fingerprint") ?: "",
-                    intent.getStringExtra("enrollToken") ?: "")
-                else -> null
+        val store = PairingStore(this)
+        // Read even for enrollment so a damaged existing list cannot be overwritten.
+        val state = store.read()
+        val saved = if (request != null) null else if (command.serverId != null)
+            store.select(command.serverId) else state.selectedComputer
+        if (request == null && saved == null) {
+            failConnection("请先在设备管理中选择电脑，或扫码添加电脑")
+            commands.trySend(Command.Finished(generation))
+            return
+        }
+        targetServerId = (request as? PairingRequest.Remembered)?.serverId ?: saved?.serverId
+        SyncStatus.connection.value = SyncStatus.connection.value.copy(
+            serverId = targetServerId, host = request?.host ?: saved?.host, port = request?.port ?: saved?.port,
+        )
+        val sessionGeneration = generation
+        syncJob = scope.launch {
+            try { runSyncLoop(request, saved) }
+            finally { commands.trySend(Command.Finished(sessionGeneration)) }
+        }
+    }
+
+    private suspend fun forgetComputer(command: Command.Forget) {
+        SyncStatus.operationError.value = null
+        val isTarget = command.serverId == targetServerId
+        try {
+            if (isTarget) {
+                generation += 1
+                syncJob?.cancelAndJoin()
+                syncJob = null
+                if (activeSession == SessionKind.Remembered && client.isConnected && hasLocalNetworkAccess(this))
+                    runCatching { client.send(forgetJson()) }
+                client.close()
+                activeSession = null
             }
-            waitingForUser = false
-            activeSession = null
-            client.close()
-        } else if (intent?.action == ActionStart) {
-            pendingRequest = null
-            waitingForUser = false
-            activeSession = null
-            client.close()
+            PairingStore(this).remove(command.serverId)?.let { deleteKey(it.keyAlias) }
+            if (isTarget) {
+                targetServerId = null
+                SyncStatus.connection.value = ConnectionState(message = "已忘记电脑，请选择其他电脑")
+            }
+        } catch (cancel: CancellationException) {
+            throw cancel
+        } catch (failure: Exception) {
+            SyncStatus.operationError.value = "忘记电脑失败，请检查应用存储后重试"
+            AppLogger.write(this, "Forget failed: ${failure.javaClass.simpleName}.")
+            if (isTarget) {
+                failConnection("忘记电脑失败，同步已停止，请重试")
+            }
+        } finally {
+            // A newer forget command can supersede stopSelfResult while no session remains.
+            if (syncJob?.isActive != true) {
+                SyncStatus.isRunning.value = false
+                stopSelfResult(command.startId)
+            }
         }
-        if (syncJob?.isActive != true) syncJob = scope.launch { runSyncLoop() }
-        return START_STICKY
     }
 
     override fun onDestroy() {
         SyncStatus.isRunning.value = false
-        syncJob?.cancel()
+        scope.cancel()
         client.close()
         activeSession = null
-        if (!waitingForUser) SyncStatus.text.value = "已停止"
+        if (SyncStatus.connection.value.phase in listOf(ConnectionPhase.Connecting,
+                ConnectionPhase.Connected, ConnectionPhase.Reconnecting))
+            SyncStatus.connection.value = SyncStatus.connection.value.copy(phase = ConnectionPhase.Idle, message = "已停止")
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun stopForMissingLocalNetworkPermission() {
-        waitingForUser = true
-        pendingRequest = null
         client.close()
         activeSession = null
-        syncJob?.cancel()
-        SyncStatus.isRunning.value = false
-        SyncStatus.text.value = SyncStatus.LocalNetworkPermissionRequired
+        failConnection(SyncStatus.LocalNetworkPermissionRequired)
         AppLogger.write(this, "Local network permission is missing; sync stopped.")
-        stopSelf()
     }
 
-    private suspend fun runSyncLoop() {
+    private fun failConnection(message: String) {
+        SyncStatus.connection.value = SyncStatus.connection.value.copy(phase = ConnectionPhase.Failed, message = message)
+    }
+
+    private suspend fun runSyncLoop(initialRequest: PairingRequest?, initialComputer: PairedComputer?) {
         val settings = SettingsStore(this)
         val store = PairingStore(this)
         val reader = UsageAppReader(this)
@@ -161,50 +260,45 @@ class ForegroundSyncService : Service() {
         var lastHeartbeat = 0L
         var lastResponse = 0L
         var retryMs = 1000L
+        var request = initialRequest
+        var saved = initialComputer
+        var hasConnected = false
 
         while (currentCoroutineContext().isActive) {
             if (!hasLocalNetworkAccess(this)) {
                 stopForMissingLocalNetworkPermission()
                 return
             }
-            if (waitingForUser && pendingRequest == null) {
-                delay(1000)
-                continue
-            }
             var resumingSaved = false
             try {
                 if (!client.isConnected) {
-                    val request = pendingRequest
-                    val saved = if (request != null) runCatching { store.read() }.getOrNull()
-                        else try { store.read() }
-                        catch (_: Exception) { throw PairingRejected("paired_data_unavailable") }
-                    if (request == null && saved == null) {
-                        SyncStatus.text.value = "等待连接"
-                        delay(1000)
-                        continue
-                    }
-                    SyncStatus.text.value = "正在连接电脑"
-                    if (request != null) {
+                    val pairingRequest = request
+                    SyncStatus.connection.value = SyncStatus.connection.value.copy(
+                        phase = if (hasConnected) ConnectionPhase.Reconnecting else ConnectionPhase.Connecting,
+                        message = if (hasConnected) "连接中断，正在重试" else "正在连接电脑",
+                    )
+                    if (pairingRequest != null) {
                         val name = android.os.Build.MODEL ?: "Android"
                         var keyAlias: String? = null
                         try {
-                            val key = if (request is PairingRequest.Remembered) DeviceKeyStore.create() else null
+                            val key = if (pairingRequest is PairingRequest.Remembered) DeviceKeyStore.create() else null
                             keyAlias = key?.first
-                            val ack = client.pair(request, deviceId, name, key?.second)
-                            if (request is PairingRequest.Remembered) {
-                                val computer = PairedComputer(request.host, request.port,
-                                    ack.getString("serverId"), request.fingerprint, deviceId,
-                                    keyAlias!!, ack.optString("serverName", "AppMapper"))
-                                try { store.save(computer) }
+                            val ack = client.pair(pairingRequest, deviceId, name, key?.second)
+                            if (pairingRequest is PairingRequest.Remembered) {
+                                val computer = PairedComputer(pairingRequest.host, pairingRequest.port,
+                                    ack.getString("serverId"), pairingRequest.fingerprint, deviceId,
+                                    keyAlias!!, ack.optString("serverName", "AppMapper"), System.currentTimeMillis())
+                                val previous = try { store.save(computer) }
                                 catch (_: Exception) {
                                     if (hasLocalNetworkAccess(this)) runCatching { client.send(forgetJson()) }
                                     throw PairingRejected("device_storage_failed")
                                 }
                                 keyAlias = null
-                                saved?.let { if (it.keyAlias != computer.keyAlias) deleteKey(it.keyAlias) }
+                                previous?.let { if (it.keyAlias != computer.keyAlias) deleteKey(it.keyAlias) }
+                                saved = computer
                             }
-                            pendingRequest = null
-                            activeSession = if (request is PairingRequest.Remembered)
+                            request = null
+                            activeSession = if (pairingRequest is PairingRequest.Remembered)
                                 SessionKind.Remembered else SessionKind.Temporary
                         } finally {
                             if (keyAlias != null) deleteKey(keyAlias)
@@ -216,7 +310,11 @@ class ForegroundSyncService : Service() {
                         client.resume(computer, name)
                         activeSession = SessionKind.Remembered
                     }
-                    SyncStatus.text.value = if (activeSession == SessionKind.Temporary) "临时连接中" else "已连接"
+                    hasConnected = true
+                    SyncStatus.connection.value = SyncStatus.connection.value.copy(
+                        phase = ConnectionPhase.Connected,
+                        message = if (activeSession == SessionKind.Temporary) "临时连接中" else "已连接",
+                    )
                     AppLogger.write(this, if (activeSession == SessionKind.Temporary)
                         "Temporary connection established." else "Authenticated connection established.")
                     lastAppId = null
@@ -271,66 +369,83 @@ class ForegroundSyncService : Service() {
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (rejected: PairingRejected) {
+                currentCoroutineContext().ensureActive()
                 if (!hasLocalNetworkAccess(this)) {
                     stopForMissingLocalNetworkPermission()
                     return
                 }
                 val wasTemporary = activeSession == SessionKind.Temporary ||
-                    pendingRequest is PairingRequest.Temporary
+                    request is PairingRequest.Temporary
                 client.close()
                 val wasRemembered = activeSession == SessionKind.Remembered || resumingSaved
                 activeSession = null
-                if (rejected.reason == "computer_identity_changed" && resumingSaved) {
-                    SyncStatus.text.value = "电脑身份不匹配，正在重试"
+                if (rejected.reason == "computer_identity_changed" && resumingSaved && hasConnected) {
+                    SyncStatus.connection.value = SyncStatus.connection.value.copy(
+                        phase = ConnectionPhase.Reconnecting, message = "电脑身份不匹配，正在重试",
+                    )
                     delay(retryMs)
                     retryMs = (retryMs * 2).coerceAtMost(30000L)
                     continue
                 }
-                pendingRequest = null
-                waitingForUser = true
-                if (wasRemembered && (rejected.reason == "pairing_required" ||
+                request = null
+                val message = if (wasRemembered && (rejected.reason == "pairing_required" ||
                         rejected.reason == "authentication_failed")) {
                     try {
-                        val old = store.read()
-                        store.clear()
-                        old?.let { deleteKey(it.keyAlias) }
-                        SyncStatus.text.value = "电脑已移除配对，请重新扫码"
+                        saved?.let { computer -> store.remove(computer.serverId)?.let { deleteKey(it.keyAlias) } }
+                        "电脑已移除配对，请重新扫码"
                     } catch (_: Exception) {
-                        SyncStatus.text.value = "电脑已拒绝配对，本地记录无法移除"
+                        "电脑已拒绝配对，本地记录无法移除"
                     }
                 } else {
-                    SyncStatus.text.value = when (rejected.reason) {
+                    when (rejected.reason) {
                         "invalid_pairing_code" -> "验证码已失效，请重新输入"
                         "invalid_enroll_token" -> "二维码已失效，请重新扫码"
                         "computer_identity_changed" -> "电脑身份不匹配，请重新扫码"
                         "device_storage_failed", "paired_data_unavailable" -> "本机配对记录无法保存或读取，请检查应用存储"
                         "max_devices_reached" -> "电脑连接数已满，请先断开其他设备"
-                        else -> if (wasTemporary) "临时连接失败，请重新输入验证码（${rejected.reason}）"
-                            else "配对失败，请重新扫码（${rejected.reason}）"
+                        else -> if (wasTemporary) "电脑拒绝临时连接，请重新输入验证码"
+                            else "电脑拒绝连接，请重新扫码或查看连接日志"
                     }
                 }
                 AppLogger.write(this, "Pairing rejected: ${rejected.reason}.")
+                failConnection(message)
+                return
             } catch (failure: Exception) {
+                currentCoroutineContext().ensureActive()
                 if (!hasLocalNetworkAccess(this)) {
                     stopForMissingLocalNetworkPermission()
                     return
                 }
-                val wasTemporary = activeSession == SessionKind.Temporary
+                val wasTemporary = activeSession == SessionKind.Temporary || request is PairingRequest.Temporary
                 client.close()
                 activeSession = null
                 lastAppId = null
                 if (wasTemporary) {
-                    waitingForUser = true
-                    SyncStatus.text.value = "临时连接已结束，需要重新输入验证码"
+                    failConnection(if (hasConnected) "临时连接已结束，需要重新输入验证码" else connectionFailureMessage(failure))
                     AppLogger.write(this, "Temporary connection ended: ${failure.javaClass.simpleName}.")
-                    continue
+                    return
                 }
-                SyncStatus.text.value = "连接中断，正在重试"
+                if (!hasConnected) {
+                    failConnection(connectionFailureMessage(failure))
+                    AppLogger.write(this, "Connection failed: ${failure.javaClass.simpleName}.")
+                    return
+                }
+                SyncStatus.connection.value = SyncStatus.connection.value.copy(
+                    phase = ConnectionPhase.Reconnecting, message = "连接中断，正在重试",
+                )
                 AppLogger.write(this, "Connection interrupted: ${failure.javaClass.simpleName}.")
                 delay(retryMs)
                 retryMs = (retryMs * 2).coerceAtMost(30000L)
             }
         }
+    }
+
+    private fun connectionFailureMessage(failure: Exception): String = when (failure) {
+        is SocketTimeoutException -> "连接超时，请确认电脑端已启动，手机与电脑处于同一局域网"
+        is UnknownHostException -> "无法解析电脑地址，请检查地址或重新扫码"
+        is ConnectException -> "无法连接电脑，请检查电脑端是否启动、IP 地址与端口是否正确"
+        is SSLException -> "安全连接失败，请检查电脑端或重新扫码配对"
+        else -> "连接失败，请检查网络与电脑端；详细原因可在连接日志中查看"
     }
 
     private suspend fun sendActiveIfNeeded(deviceId: String, app: ActiveApp) {
@@ -416,26 +531,31 @@ class ForegroundSyncService : Service() {
             })
         }
 
-        fun start(context: Context) {
+        fun start(context: Context, serverId: String? = null) {
             if (!canStart(context)) return
             context.startForegroundService(Intent(context, ForegroundSyncService::class.java).apply {
                 action = ActionStart
+                if (serverId != null) putExtra("serverId", serverId)
             })
         }
 
-        fun forget(context: Context) {
-            context.startService(Intent(context, ForegroundSyncService::class.java).apply { action = ActionForget })
+        fun forget(context: Context, serverId: String) {
+            context.startService(Intent(context, ForegroundSyncService::class.java).apply {
+                action = ActionForget
+                putExtra("serverId", serverId)
+            })
         }
 
         private fun canStart(context: Context): Boolean {
             if (hasLocalNetworkAccess(context)) return true
-            SyncStatus.text.value = SyncStatus.LocalNetworkPermissionRequired
+            SyncStatus.connection.value = ConnectionState(phase = ConnectionPhase.Failed,
+                message = SyncStatus.LocalNetworkPermissionRequired)
             return false
         }
 
         fun stop(context: Context) {
             context.stopService(Intent(context, ForegroundSyncService::class.java))
-            SyncStatus.text.value = "已停止"
+            SyncStatus.connection.value = SyncStatus.connection.value.copy(phase = ConnectionPhase.Idle, message = "已停止")
         }
     }
 }
