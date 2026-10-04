@@ -213,7 +213,7 @@ internal fun AppScaffold(
                 )
             } else {
                 BoxWithConstraints(Modifier.fillMaxSize()) {
-                    val useRail = maxWidth >= 600.dp
+                    val useRail = this.maxWidth >= 600.dp
                     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
                     val tabState = rememberSaveableStateHolder()
 

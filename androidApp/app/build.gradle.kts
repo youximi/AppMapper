@@ -1,3 +1,6 @@
+import com.android.build.api.dsl.ApplicationExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -28,11 +31,11 @@ val syncLicenseAssets = tasks.register<Sync>("syncLicenseAssets") {
     into(licenseAssets)
 }
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "dev.youximi.appmapper"
     compileSdk = 37
     buildToolsVersion = "36.0.0"
-    sourceSets.getByName("main").assets.srcDir(licenseAssets.get().asFile)
+    sourceSets.getByName("main").assets.directories.add(licenseAssets.get().asFile.path)
 
     signingConfigs {
         if (hasReleaseSigning) {
@@ -63,16 +66,18 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildTypes {
         release {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 

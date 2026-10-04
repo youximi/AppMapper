@@ -45,6 +45,7 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.net.ssl.SSLException
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class ConnectionPhase { Idle, Connecting, Connected, Reconnecting, Failed }
 
@@ -365,7 +366,7 @@ class ForegroundSyncService : Service() {
                         throw PairingRejected(message.optString("code"))
                 }
                 if (now - lastResponse > 15000) throw IOException("Heartbeat timed out")
-                delay(settings.getPollingMs())
+                delay(settings.getPollingMs().milliseconds)
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (rejected: PairingRejected) {
@@ -383,11 +384,10 @@ class ForegroundSyncService : Service() {
                     SyncStatus.connection.value = SyncStatus.connection.value.copy(
                         phase = ConnectionPhase.Reconnecting, message = "电脑身份不匹配，正在重试",
                     )
-                    delay(retryMs)
+                    delay(retryMs.milliseconds)
                     retryMs = (retryMs * 2).coerceAtMost(30000L)
                     continue
                 }
-                request = null
                 val message = if (wasRemembered && (rejected.reason == "pairing_required" ||
                         rejected.reason == "authentication_failed")) {
                     try {
@@ -434,7 +434,7 @@ class ForegroundSyncService : Service() {
                     phase = ConnectionPhase.Reconnecting, message = "连接中断，正在重试",
                 )
                 AppLogger.write(this, "Connection interrupted: ${failure.javaClass.simpleName}.")
-                delay(retryMs)
+                delay(retryMs.milliseconds)
                 retryMs = (retryMs * 2).coerceAtMost(30000L)
             }
         }
