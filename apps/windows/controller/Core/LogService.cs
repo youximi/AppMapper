@@ -46,11 +46,14 @@ public sealed class LogService : IDisposable
             Message = message,
         };
 
-        memory.Enqueue(entry);
-        while (memory.Count > MaxMemoryEntries && memory.TryDequeue(out _)) { }
-
         var line = $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss} [{level.ToString().ToUpperInvariant()}] {message}{Environment.NewLine}";
-        buffer.AppendLine(line);
+        lock (buffer)
+        {
+            if (disposed) return;
+            memory.Enqueue(entry);
+            while (memory.Count > MaxMemoryEntries && memory.TryDequeue(out _)) { }
+            buffer.AppendLine(line);
+        }
 
         LogEmitted?.Invoke(entry);
     }
@@ -66,12 +69,15 @@ public sealed class LogService : IDisposable
     public async Task FlushAsync()
     {
         string[] lines;
-        await fileLock.WaitAsync();
+        await fileLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (buffer.Length == 0) return;
-            lines = buffer.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
-            buffer.Clear();
+            lock (buffer)
+            {
+                if (buffer.Length == 0) return;
+                lines = buffer.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+                buffer.Clear();
+            }
         }
         finally
         {
@@ -79,11 +85,11 @@ public sealed class LogService : IDisposable
         }
 
         if (lines.Length == 0) return;
-        await fileLock.WaitAsync();
+        await fileLock.WaitAsync().ConfigureAwait(false);
         try
         {
             var path = Path.Combine(logsDirectory, $"appmapper-{DateTime.Now:yyyyMMdd}.log");
-            await File.AppendAllLinesAsync(path, lines, Encoding.UTF8);
+            await File.AppendAllLinesAsync(path, lines, Encoding.UTF8).ConfigureAwait(false);
             RotateIfNeeded(path);
             PurgeOldFiles();
         }
@@ -130,10 +136,13 @@ public sealed class LogService : IDisposable
 
     public void Dispose()
     {
-        if (disposed) return;
-        disposed = true;
-        flushTimer.Dispose();
-        FlushAsync().Wait();
-        fileLock.Dispose();
+        lock (buffer)
+        {
+            if (disposed) return;
+            disposed = true;
+        }
+        flushTimer.DisposeAsync().AsTask().GetAwaiter().GetResult();
+        try { FlushAsync().GetAwaiter().GetResult(); }
+        finally { fileLock.Dispose(); }
     }
 }

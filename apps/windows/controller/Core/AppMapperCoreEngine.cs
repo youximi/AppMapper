@@ -30,6 +30,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     private string pairingUri = "";
     private string networkWarning = "";
     private string? lastNetworkWarning;
+    private bool stopped;
 
     public Settings Settings => settingsService.Current;
 
@@ -57,7 +58,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         server.ActiveAppReceived += OnActiveApp;
         server.IdleReceived += OnIdle;
         server.Disconnected += OnDisconnected;
-        server.PairingChanged += () => { lock (stateLock) RaiseDevicesChanged(); };
+        server.PairingChanged += () => { lock (stateLock) { if (!stopped) RaiseDevicesChanged(); } };
 
         pairingCode.Changed += UpdatePairingDisplay;
 
@@ -81,24 +82,30 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         return Task.CompletedTask;
     }
 
-    public async Task StopAsync()
+    public Task StopAsync()
     {
-        try
+        lock (stateLock)
         {
-            server.Stop();
-            mapping.CloseCurrent();
-            pairingCode.Dispose();
-            identity.Dispose();
+            if (stopped) return Task.CompletedTask;
+            stopped = true;
         }
-        catch (Exception ex)
+
+        StopService(mapping.Stop, "mapper");
+        StopService(server.Stop, "server");
+        StopService(pairingCode.Dispose, "pairing code");
+        StopService(identity.Dispose, "identity");
+        return Task.CompletedTask;
+
+        void StopService(Action stop, string name)
         {
-            log.Warn($"Stop error: {ex.Message}");
+            try { stop(); }
+            catch (Exception ex) { log.Warn($"Stop error ({name}): {ex.Message}"); }
         }
-        await Task.CompletedTask;
     }
 
     public void RestartServer(int port)
     {
+        lock (stateLock) { if (stopped) return; }
         if (port < 1 || port > 65535) port = 8765;
         Settings.Port = port;
         server.Start(port, pairingCode.TryConsumeManual, pairingCode.TryConsumeEnrollment, maxDevices: 3);
@@ -150,6 +157,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         PairingInfo info;
         lock (stateLock)
         {
+            if (stopped) return;
             var invitation = pairingCode.Current;
             var address = NetworkInfoService.ResolveAddress(Settings);
             serverAddress = $"{address.ServerAddressHost}:{Settings.Port}";
@@ -174,6 +182,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         lock (stateLock)
         {
+            if (stopped) return;
             var device = GetOrCreateDevice(deviceId);
             device.DeviceName = deviceName;
             device.IsPaired = pairing.Find(deviceId) != null;
@@ -194,6 +203,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         lock (stateLock)
         {
+            if (stopped) return;
             var device = GetOrCreateDevice(deviceId);
             if (sequence < device.LastSequence) return;
             device.LastSequence = sequence;
@@ -220,6 +230,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         lock (stateLock)
         {
+            if (stopped) return;
             var device = GetOrCreateDevice(deviceId);
             if (sequence < device.LastSequence) return;
             device.LastSequence = sequence;
@@ -242,6 +253,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     {
         lock (stateLock)
         {
+            if (stopped) return;
             devices.Remove(deviceId);
 
             if (activeDeviceId == deviceId)
@@ -291,8 +303,11 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
 
     public void Dispose()
     {
-        StopAsync().Wait();
-        log.Dispose();
-        settingsService.Dispose();
+        try { StopAsync().GetAwaiter().GetResult(); }
+        finally
+        {
+            try { settingsService.Dispose(); }
+            finally { log.Dispose(); }
+        }
     }
 }

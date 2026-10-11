@@ -13,8 +13,10 @@ public sealed class AppMappingService
     private readonly LogService log;
     private readonly string appRoot;
     private readonly string templateExe;
+    private readonly object processLock = new();
     private Process? currentProcess;
     private string? currentAppId;
+    private bool stopped;
 
     public AppMappingService(LogService log)
     {
@@ -31,50 +33,80 @@ public sealed class AppMappingService
 
     public void Show(AppInfo app)
     {
-        var mapping = EnsureMapping(app);
-        if (currentAppId == app.AppId && currentProcess is { HasExited: false })
+        lock (processLock)
         {
-            ActivateMapperWindow(currentProcess);
-            return;
-        }
-
-        CloseCurrent();
-        currentAppId = app.AppId;
-        currentProcess = Process.Start(new ProcessStartInfo
-        {
-            FileName = mapping.ExePath,
-            WorkingDirectory = mapping.Directory,
-            UseShellExecute = true,
-        });
-
-        if (currentProcess != null)
-        {
-            currentProcess.EnableRaisingEvents = true;
-            currentProcess.Exited += (_, _) =>
+            if (stopped) return;
+            var mapping = EnsureMapping(app);
+            if (currentAppId == app.AppId && currentProcess is { HasExited: false })
             {
-                if (RelaunchWhenClosed && currentAppId == app.AppId)
+                ActivateMapperWindow(currentProcess);
+                return;
+            }
+
+            CloseCurrent();
+            currentAppId = app.AppId;
+            var process = Process.Start(new ProcessStartInfo
+            {
+                FileName = mapping.ExePath,
+                WorkingDirectory = mapping.Directory,
+                UseShellExecute = true,
+            });
+            currentProcess = process;
+
+            if (process != null)
+            {
+                // Process 在内部锁中触发 Exited，重开操作排队后再获取映射锁。
+                process.Exited += (_, _) => ThreadPool.QueueUserWorkItem(_ =>
                 {
-                    log.Info($"Mapper closed by user; relaunching {app.DisplayName}.");
-                    Show(app);
-                }
-            };
+                    lock (processLock)
+                    {
+                        if (!stopped && RelaunchWhenClosed && currentAppId == app.AppId
+                            && ReferenceEquals(currentProcess, process))
+                        {
+                            log.Info($"Mapper closed by user; relaunching {app.DisplayName}.");
+                            Show(app);
+                        }
+                    }
+                });
+                process.EnableRaisingEvents = true;
 
-            ActivateMapperWindow(currentProcess);
+                ActivateMapperWindow(process);
+            }
+
+            log.Info($"Showing mapper for {app.DisplayName}.");
         }
-
-        log.Info($"Showing mapper for {app.DisplayName}.");
     }
 
     public void CloseCurrent()
     {
-        currentAppId = null;
-        if (currentProcess is { HasExited: false })
+        lock (processLock)
         {
-            currentProcess.Kill(entireProcessTree: true);
-            currentProcess.WaitForExit(1500);
-        }
+            var process = currentProcess;
+            currentProcess = null;
+            currentAppId = null;
+            if (process == null) return;
 
-        currentProcess = null;
+            using (process)
+            {
+                process.EnableRaisingEvents = false;
+                if (!process.HasExited)
+                {
+                    try { process.Kill(entireProcessTree: true); }
+                    catch (InvalidOperationException) when (process.HasExited) { }
+                    if (!process.WaitForExit(1500))
+                        throw new TimeoutException("Mapper process did not exit.");
+                }
+            }
+        }
+    }
+
+    public void Stop()
+    {
+        lock (processLock)
+        {
+            stopped = true;
+            CloseCurrent();
+        }
     }
 
     private MappingPaths EnsureMapping(AppInfo app)
