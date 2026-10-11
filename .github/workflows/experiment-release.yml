@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version name, for example 0.1.0. Falls back to Android default versionName."
+        description: "Base version, for example 0.1.0. CI replaces the patch number with its run number. Falls back to Android default versionName."
         required: false
         type: string
       codename:
@@ -67,6 +67,8 @@ jobs:
 
           # --- Build kind & prerelease flag (main = formal, others = pre-release) ---
           $buildNumber = "${{ github.run_number }}"
+          $versionParts = $version.Split('.')
+          $version = "$($versionParts[0]).$($versionParts[1]).$buildNumber"
           $isMainBranch = ($refName -eq "main" -or $refName -eq "master")
 
           if ($isMainBranch) {
