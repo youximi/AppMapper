@@ -1,6 +1,6 @@
 # 第三方组件许可 (Third-Party Licenses)
 
-AppMapper 自有代码采用 GPL-3.0-only，完整条款见 [LICENSE](./LICENSE)。下列第三方组件保留各自的许可证与版权声明。本文件与 LICENSE 一同包含在 Windows 压缩包及 Android APK 内，Android 用户可在「设置 → 开源许可」中离线查看。
+AppMapper 自有代码采用 GPL-3.0-only，完整条款见 [LICENSE](./LICENSE)。下列第三方组件保留各自的许可证与版权声明。本文件与 LICENSE 一同内置于 Windows 程序及 Android APK，两端用户均可在「设置 → 开源许可」中离线查看。
 
 版本清单依据 2026-09-29 的 Windows NuGet 运行时还原结果及 Android releaseRuntimeClasspath 整理。升级依赖或改变构建配置时应重新核对。
 

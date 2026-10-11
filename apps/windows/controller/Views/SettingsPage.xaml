@@ -97,6 +97,23 @@
                     <ui:Button Content="打开 apps 目录" Command="{Binding OpenAppsDirectoryCommand}" />
                 </StackPanel>
             </Border>
+
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="20" Margin="0,16,0,0">
+                <StackPanel>
+                    <TextBlock Text="关于 AppMapper" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
+                    <TextBlock Text="将 Android 前台应用映射为 Windows 桌面窗口。" TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <TextBlock x:Name="VersionText" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,16" />
+                    <WrapPanel>
+                        <ui:Button Content="项目主页" Click="OnOpenProject" Margin="0,0,12,8" />
+                        <ui:Button Content="开源许可" Click="OnOpenLicenses" Margin="0,0,0,8" />
+                    </WrapPanel>
+                    <TextBlock Text="© 2026 AppMapper contributors · GPL-3.0-only" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </Page>

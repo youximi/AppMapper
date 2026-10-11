@@ -8,11 +8,18 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>AppMapper</AssemblyName>
     <RootNamespace>AppMapper.Controller</RootNamespace>
+    <Version>0.1.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="WPF-UI" Version="4.3.0" />
     <PackageReference Include="WPF-UI.Tray" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="../../../LICENSE" LogicalName="AppMapper.Licenses.LICENSE" />
+    <EmbeddedResource Include="../../../THIRD_PARTY_LICENSES.md" LogicalName="AppMapper.Licenses.THIRD_PARTY_LICENSES.md" />
   </ItemGroup>
 </Project>
