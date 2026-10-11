@@ -11,10 +11,10 @@ out/
 *.iml
 local.properties
 .codebuddy
-androidApp/app/build/
+apps/android/app/build/
 
-windowsApp/**/bin/
-windowsApp/**/obj/
+apps/windows/**/bin/
+apps/windows/**/obj/
 *.user
 *.suo
 .vs/
@@ -28,6 +28,6 @@ apps/
 *.hprof
 release-notes.md
 
-windowsApp/**/logs/
-windowsApp/**/config/settings.json
-windowsApp/**/config/pairing.dat
+apps/windows/**/logs/
+apps/windows/**/config/settings.json
+apps/windows/**/config/pairing.dat

@@ -27,7 +27,7 @@ val hasReleaseSigning = listOf(
 
 val licenseAssets = layout.buildDirectory.dir("generated/licenseAssets")
 val syncLicenseAssets = tasks.register<Sync>("syncLicenseAssets") {
-    from(rootProject.file("LICENSE"), rootProject.file("THIRD_PARTY_LICENSES.md"))
+    from(rootProject.file("../../LICENSE"), rootProject.file("../../THIRD_PARTY_LICENSES.md"))
     into(licenseAssets)
 }
 

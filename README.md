@@ -14,12 +14,13 @@
 
 ```text
 AppMapper/
-├── androidApp/              Android 客户端（Kotlin + Compose）
-├── windowsApp/
-│   ├── controller/          Windows 总控端（C# WPF）
-│   ├── mapper/              映射小程序模板（C++ Win32）
-│   └── common/              预留的 Windows 公共工具
-├── shared/                  协议示例与共享说明
+├── apps/
+│   ├── android/             Android 工程（Gradle Wrapper 与构建配置）
+│   │   └── app/             Android 客户端（Kotlin + Compose）
+│   └── windows/
+│       ├── controller/      Windows 总控端（C# WPF）
+│       └── mapper/          映射小程序模板（C++ Win32）
+└── protocol/                协议示例与共享说明
 ```
 
 ## 技术栈
@@ -65,24 +66,24 @@ Android 端勾选「记住设备」后扫描二维码绑定；二维码中的公
 标准构建方式：
 
 ```powershell
-.\gradlew.bat :androidApp:app:assembleDebug
+.\apps\android\gradlew.bat -p apps/android :app:assembleDebug
 ```
 
-Windows 下 `gradlew.bat` 会优先使用 JDK 17/21；如果系统默认 JDK 过新，会自动尝试使用 Android Studio 自带的 JBR。
+Windows 下 `apps/android/gradlew.bat` 会优先使用 JDK 17/21；如果系统默认 JDK 过新，会自动尝试使用 Android Studio 自带的 JBR。
 
 ### Windows 总控端
 
 ```powershell
-dotnet build windowsApp\controller\AppMapper.Controller.csproj
+dotnet build apps\windows\controller\AppMapper.Controller.csproj
 ```
 
 ### Windows 映射端模板
 
 ```powershell
-msbuild windowsApp\mapper\AppMapper.Mapper.vcxproj /p:Configuration=Release /p:Platform=x64
+msbuild apps\windows\mapper\AppMapper.Mapper.vcxproj /p:Configuration=Release /p:Platform=x64
 ```
 
-映射端构建完成后，把 `windowsApp\mapper\bin\Release\mapper-template.exe` 复制到总控端可执行文件的同级目录。总控端运行时会从这里找exe模板。
+映射端构建完成后，把 `apps\windows\mapper\bin\Release\mapper-template.exe` 复制到总控端可执行文件的同级目录。总控端运行时会从这里找exe模板。
 
 ## 快速开始
 

@@ -46,7 +46,7 @@ jobs:
             if ($refType -eq "tag" -and $refName -match '^v(.+)$') {
               $version = $Matches[1]
             } else {
-              $versionLine = Select-String -Path "androidApp\app\build.gradle.kts" -Pattern 'orElse\("([^"]+)"\)' | Select-Object -First 1
+              $versionLine = Select-String -Path "apps\android\app\build.gradle.kts" -Pattern 'orElse\("([^"]+)"\)' | Select-Object -First 1
               if ($null -eq $versionLine) {
                 throw "Unable to infer version. Pass the workflow_dispatch version input."
               }
@@ -167,7 +167,7 @@ jobs:
 
       - name: Build Android release APK
         run: |
-          .\gradlew.bat :androidApp:app:assembleRelease `
+          .\apps\android\gradlew.bat -p apps/android :app:assembleRelease `
             "-PappVersionName=$env:APP_VERSION" `
             "-PappVersionCode=$env:BUILD_NUMBER"
         env:
@@ -177,19 +177,19 @@ jobs:
 
       - name: Build Windows mapper template
         run: |
-          msbuild windowsApp\mapper\AppMapper.Mapper.vcxproj `
+          msbuild apps\windows\mapper\AppMapper.Mapper.vcxproj `
             /p:Configuration=Release `
             /p:Platform=x64
 
       - name: Publish Windows controller
         run: |
-          dotnet publish windowsApp\controller\AppMapper.Controller.csproj `
+          dotnet publish apps\windows\controller\AppMapper.Controller.csproj `
             -c Release `
             -r win-x64 `
             --self-contained false `
             -o dist\windows
 
-          Copy-Item windowsApp\mapper\bin\Release\mapper-template.exe dist\windows\
+          Copy-Item apps\windows\mapper\bin\Release\mapper-template.exe dist\windows\
           Copy-Item LICENSE dist\windows\LICENSE
           Copy-Item THIRD_PARTY_LICENSES.md dist\windows\THIRD_PARTY_LICENSES.md
 
@@ -197,7 +197,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force artifacts | Out-Null
 
-          $apk = Get-ChildItem "androidApp\app\build\outputs\apk\release" -Filter "*.apk" |
+          $apk = Get-ChildItem "apps\android\app\build\outputs\apk\release" -Filter "*.apk" |
             Where-Object { $_.Name -notmatch "unsigned" } |
             Select-Object -First 1
 

@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "AppMapper"
-include(":androidApp:app")
+include(":app")
