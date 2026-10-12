@@ -21,6 +21,8 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     private readonly AppMappingService mapping;
     private readonly PairingStore pairing;
     private readonly DeviceIdentityService identity;
+    private readonly GitHubUpdateService updates = new();
+    private int startupUpdateChecked;
 
     private readonly Dictionary<string, DeviceState> devices = new();
     private readonly object stateLock = new();
@@ -40,6 +42,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     public event Action<PairingInfo>? PairingChanged;
     public event Action<IReadOnlyList<DeviceState>>? DevicesChanged;
     public event Action<string>? StatusChanged;
+    public event Action<UpdateCheckState>? UpdateChanged;
 
     public AppMapperCoreEngine(LogService log, SettingsService settingsService)
     {
@@ -51,6 +54,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         server = new TcpJsonServer(log, pairing, identity);
         pairingCode = new PairingCodeService();
         mapping = new AppMappingService(log);
+        updates.Changed += update => UpdateChanged?.Invoke(update);
 
         log.LogEmitted += e => LogEmitted?.Invoke(e);
 
@@ -79,8 +83,12 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
     public Task StartAsync()
     {
         RestartServer(Settings.Port);
+        if (Interlocked.Exchange(ref startupUpdateChecked, 1) == 0)
+            _ = CheckForUpdatesAsync();
         return Task.CompletedTask;
     }
+
+    public Task<UpdateCheckState> CheckForUpdatesAsync() => updates.CheckAsync();
 
     public Task StopAsync()
     {
@@ -90,6 +98,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
             stopped = true;
         }
 
+        StopService(updates.Dispose, "update checker");
         StopService(mapping.Stop, "mapper");
         StopService(server.Stop, "server");
         StopService(pairingCode.Dispose, "pairing code");
@@ -146,6 +155,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
                 PairingUri = pairingUri,
                 NetworkWarning = networkWarning,
                 CurrentStatus = currentStatus,
+                Update = updates.State,
                 Devices = GetDevicesSnapshot(),
                 RecentLogs = log.GetRecent(),
             };

@@ -71,6 +71,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.youximi.appmapper.data.UpdateCheckPhase
+import dev.youximi.appmapper.data.UpdateCheckState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,6 +89,9 @@ internal fun SettingsScreen(
     onOpenLicenses: () -> Unit,
     savedComputerCount: Int,
     onOpenDevices: () -> Unit,
+    updateState: UpdateCheckState,
+    onCheckUpdates: () -> Unit,
+    onOpenUpdateNotes: () -> Unit,
 ) {
     var showThemePicker by rememberSaveable { mutableStateOf(false) }
     val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -103,6 +108,7 @@ internal fun SettingsScreen(
         trailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
     )
     val groupColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    val hasUpdateNotes = updateState.release != null && updateState.phase != UpdateCheckPhase.Checking
 
     ScreenContent {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -220,6 +226,28 @@ internal fun SettingsScreen(
                             modifier = Modifier.size(32.dp),
                         )
                     },
+                )
+                ListItem(
+                    modifier = Modifier.clickable(
+                        enabled = updateState.phase != UpdateCheckPhase.Checking,
+                        role = Role.Button, onClick = onCheckUpdates),
+                    colors = rowColors,
+                    headlineContent = { Text("检查更新") },
+                    supportingContent = { Text(updateState.message,
+                        color = if (updateState.phase == UpdateCheckPhase.Failed)
+                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                )
+                ListItem(
+                    modifier = Modifier.clickable(enabled = hasUpdateNotes,
+                        role = Role.Button, onClick = onOpenUpdateNotes),
+                    colors = if (hasUpdateNotes) rowColors else disabledRowColors,
+                    headlineContent = { Text("更新说明") },
+                    supportingContent = { Text(updateState.release?.let { "最新版本 " + it.versionName }
+                        ?: "检查成功后可查看 Git 提交记录") },
+                    leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
+                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
                 )
                 ListItem(
                     modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLicenses),

@@ -212,12 +212,18 @@ jobs:
 
       - name: Generate release notes
         run: |
-          # Look for any previous Version.* tag (covers both Release and Experiment_C kinds)
+          # Compare stable releases with the previous reachable stable release.
+          $tagPattern = if ($env:IS_PRERELEASE -eq "true") {
+            '^Version\.\d+\.\d+\.\d+\.(?:Release|Experiment_C)(\d+)$'
+          } else {
+            '^Version\.\d+\.\d+\.\d+\.Release(\d+)$'
+          }
           $previousTag = git for-each-ref `
-            --sort=-creatordate `
+            --merged=HEAD `
             --format='%(refname:short)' `
             "refs/tags/Version.*" |
-            Where-Object { $_ -ne $env:RELEASE_TAG } |
+            Where-Object { $_ -ne $env:RELEASE_TAG -and $_ -match $tagPattern } |
+            Sort-Object { [long]([regex]::Match($_, $tagPattern).Groups[1].Value) } -Descending |
             Select-Object -First 1
 
           if ([string]::IsNullOrWhiteSpace($previousTag)) {

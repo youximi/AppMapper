@@ -10,6 +10,8 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import dev.youximi.appmapper.data.AppLogger
+import dev.youximi.appmapper.data.AppUpdateInfo
+import dev.youximi.appmapper.data.GitHubUpdateChecker
 import dev.youximi.appmapper.data.DeviceKeyStore
 import dev.youximi.appmapper.data.PairingState
 import dev.youximi.appmapper.data.PairingStore
@@ -26,6 +28,24 @@ class AppCoordinator(
     private val usageReader: UsageAppReader,
 ) {
     private val pairing = PairingStore(activity)
+
+    val updateState = GitHubUpdateChecker.state
+    fun checkUpdatesOnStartup() = GitHubUpdateChecker.checkOnStartup()
+    fun checkUpdates() = GitHubUpdateChecker.check()
+    fun shouldNotifyUpdate(release: AppUpdateInfo): Boolean =
+        release.isNewerThan(BuildConfig.VERSION_CODE) &&
+            release.buildNumber > settings.getLastNotifiedBuild()
+
+    fun markUpdateNotified(release: AppUpdateInfo) {
+        settings.saveLastNotifiedBuild(maxOf(settings.getLastNotifiedBuild(), release.buildNumber))
+    }
+
+    fun openRelease(release: AppUpdateInfo): String? = try {
+        activity.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(release.releaseUrl)))
+        null
+    } catch (_: android.content.ActivityNotFoundException) {
+        "无法打开浏览器，请安装或启用浏览器后重试"
+    }
 
     fun loadInitialState(): AppState {
         val saved = runCatching { pairing.read() }

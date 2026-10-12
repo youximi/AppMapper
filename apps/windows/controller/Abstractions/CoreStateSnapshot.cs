@@ -20,6 +20,7 @@ public sealed class CoreStateSnapshot
     public string PairingUri { get; init; } = string.Empty;
     public string NetworkWarning { get; init; } = string.Empty;
     public string CurrentStatus { get; init; } = string.Empty;
+    public UpdateCheckState Update { get; init; } = new();
     public IReadOnlyList<DeviceState> Devices { get; init; } = Array.Empty<DeviceState>();
     public IReadOnlyList<LogEntry> RecentLogs { get; init; } = Array.Empty<LogEntry>();
 }

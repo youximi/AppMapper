@@ -112,6 +112,12 @@
                     <TextBlock Text="将 Android 前台应用映射为 Windows 桌面窗口。" TextWrapping="Wrap" Margin="0,0,0,8" />
                     <TextBlock x:Name="VersionText" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,16" />
+                    <TextBlock Text="{Binding UpdateStatus}" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,12" />
+                    <WrapPanel Margin="0,0,0,8">
+                        <ui:Button Content="检查更新" Click="OnCheckUpdates" IsEnabled="{Binding CanCheckUpdates}" Margin="0,0,12,8" />
+                        <ui:Button Content="更新说明" Click="OnOpenUpdateNotes" IsEnabled="{Binding HasUpdateNotes}" Margin="0,0,0,8" />
+                    </WrapPanel>
                     <WrapPanel>
                         <ui:Button Content="项目主页" Click="OnOpenProject" Margin="0,0,12,8" />
                         <ui:Button Content="开源许可" Click="OnOpenLicenses" Margin="0,0,0,8" />

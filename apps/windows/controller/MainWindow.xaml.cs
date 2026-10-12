@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using AppMapper.Controller.Abstractions;
 using AppMapper.Controller.Core;
+using AppMapper.Controller.Models;
 using Wpf.Ui.Controls;
 using Application = System.Windows.Application;
 
@@ -16,6 +17,8 @@ namespace AppMapper.Controller;
 public partial class MainWindow : FluentWindow
 {
     private bool forceExit;
+    private bool updateDialogOpen;
+    private readonly CancellationTokenSource dialogLifetime = new();
 
     public MainWindow()
     {
@@ -24,6 +27,8 @@ public partial class MainWindow : FluentWindow
         var settings = App.Core.Settings;
         RootNavigation.IsPaneOpen = settings.PaneOpen;
         settings.PropertyChanged += OnSettingChanged;
+        App.Core.UpdateChanged += OnUpdateChanged;
+        Activated += OnActivated;
     }
 
     /// <summary>启动后默认打开配对页（避免空白）。</summary>
@@ -31,6 +36,50 @@ public partial class MainWindow : FluentWindow
     {
         if (RootNavigation.SelectedItem is null)
             RootNavigation.Navigate(typeof(Views.PairingPage), null);
+        Dispatcher.BeginInvoke(TryShowAutomaticUpdate);
+    }
+
+    private void OnActivated(object? sender, EventArgs e) => Dispatcher.BeginInvoke(TryShowAutomaticUpdate);
+
+    private void OnUpdateChanged(UpdateCheckState update) => Dispatcher.BeginInvoke(TryShowAutomaticUpdate);
+
+    private async void TryShowAutomaticUpdate()
+    {
+        if (!IsLoaded || !IsVisible || !IsActive || !IsEnabled || updateDialogOpen) return;
+        var update = App.Core.GetStateSnapshot().Update;
+        if (update.HasUpdate && update.Release is { } release &&
+            release.BuildNumber > App.Core.Settings.LastNotifiedBuild)
+            await ShowUpdateDialogAsync(release);
+    }
+
+    public async Task ShowUpdateDialogAsync(AppUpdateInfo release)
+    {
+        if (updateDialogOpen || !IsVisible) return;
+        updateDialogOpen = true;
+        try
+        {
+            var newer = release.IsNewerThan(Services.GitHubUpdateService.ParseInstalledBuild(
+                Services.GitHubUpdateService.InstalledVersion));
+            var dialog = new Views.UpdateDialog(UpdateDialogHost, release, newer);
+            dialog.Loaded += (_, _) =>
+            {
+                if (newer) App.Core.Settings.LastNotifiedBuild =
+                    Math.Max(App.Core.Settings.LastNotifiedBuild, release.BuildNumber);
+            };
+            await dialog.ShowAsync(dialogLifetime.Token);
+        }
+        catch (OperationCanceledException) { }
+        finally { updateDialogOpen = false; }
+        TryShowAutomaticUpdate();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        App.Core.UpdateChanged -= OnUpdateChanged;
+        App.Core.Settings.PropertyChanged -= OnSettingChanged;
+        dialogLifetime.Cancel();
+        dialogLifetime.Dispose();
+        base.OnClosed(e);
     }
 
     private void OnSettingChanged(object? sender, PropertyChangedEventArgs e)

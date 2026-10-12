@@ -69,6 +69,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.youximi.appmapper.data.PairingParser
 import dev.youximi.appmapper.data.PairingRequest
 import dev.youximi.appmapper.data.PairingStore
+import dev.youximi.appmapper.data.UpdateCheckPhase
 import dev.youximi.appmapper.service.ConnectionPhase
 import dev.youximi.appmapper.service.ConnectionState
 import dev.youximi.appmapper.service.SyncStatus
@@ -94,6 +95,9 @@ internal fun AppScaffold(
     val isSyncRunning by SyncStatus.isRunning.collectAsStateWithLifecycle()
     val pairingRevision by PairingStore.changes.collectAsStateWithLifecycle()
     val appState by rememberAppState(coordinator, pairingRevision)
+    val updateState by coordinator.updateState.collectAsStateWithLifecycle()
+    var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
+    var updateDownloadError by remember { mutableStateOf<String?>(null) }
     var rootPage by rememberSaveable { mutableStateOf(RootPage.Main) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
     var pollingMs by rememberSaveable(appState.pollingMs) { mutableStateOf(appState.pollingMs) }
@@ -103,6 +107,40 @@ internal fun AppScaffold(
     val lifecycleOwner = LocalLifecycleOwner.current
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var showPermissionDialog by rememberSaveable { mutableStateOf(false) }
+    var resumed by remember { mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
+
+    LaunchedEffect(coordinator) { coordinator.checkUpdatesOnStartup() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, _ ->
+            resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(updateState, resumed, rootPage, selectedTab, pendingAction, showPermissionDialog) {
+        val release = updateState.release
+        if (resumed && rootPage == RootPage.Main && selectedTab == MainTab.Home &&
+            pendingAction == null && !showPermissionDialog &&
+            updateState.phase == UpdateCheckPhase.Available && release != null &&
+            coordinator.shouldNotifyUpdate(release)) {
+            updateDownloadError = null
+            showUpdateDialog = true
+        }
+    }
+    if (showUpdateDialog && resumed && !showPermissionDialog && pendingAction == null) {
+        updateState.release?.let { release ->
+            LaunchedEffect(release.buildNumber) { coordinator.markUpdateNotified(release) }
+            UpdateDialog(
+                release = release,
+                onDismiss = { showUpdateDialog = false; updateDownloadError = null },
+                onDownload = {
+                    updateDownloadError = coordinator.openRelease(release)
+                    if (updateDownloadError == null) showUpdateDialog = false
+                },
+                downloadError = updateDownloadError,
+            )
+        }
+    }
 
     fun completePendingAction() {
         val action = pendingAction
@@ -317,6 +355,12 @@ internal fun AppScaffold(
                                                 },
                                                 onOpenLogs = { rootPage = RootPage.Logs },
                                                 onOpenLicenses = { rootPage = RootPage.Licenses },
+                                                updateState = updateState,
+                                                onCheckUpdates = coordinator::checkUpdates,
+                                                onOpenUpdateNotes = {
+                                                    updateDownloadError = null
+                                                    showUpdateDialog = true
+                                                },
                                                 savedComputerCount = appState.pairing.computers.size,
                                                 onOpenDevices = {
                                                     scanError = ""

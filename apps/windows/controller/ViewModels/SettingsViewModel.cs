@@ -1,6 +1,7 @@
 using System.Windows.Input;
 using AppMapper.Controller.Abstractions;
 using AppMapper.Controller.Services;
+using AppMapper.Controller.Models;
 
 namespace AppMapper.Controller.ViewModels;
 
@@ -9,6 +10,7 @@ namespace AppMapper.Controller.ViewModels;
 public sealed class SettingsViewModel : ViewModelBase
 {
     private readonly ICoreFacade core;
+    private UpdateCheckState updateState;
 
     private string port = "8765";
     private bool relaunchMapperWhenClosed = true;
@@ -24,6 +26,14 @@ public sealed class SettingsViewModel : ViewModelBase
     public SettingsViewModel(ICoreFacade core)
     {
         this.core = core;
+        updateState = core.GetStateSnapshot().Update;
+        core.UpdateChanged += update => Dispatch(() =>
+        {
+            updateState = update;
+            OnPropertyChanged(nameof(CanCheckUpdates));
+            OnPropertyChanged(nameof(HasUpdateNotes));
+            OnPropertyChanged(nameof(UpdateStatus));
+        });
         OpenAppsDirectoryCommand = new RelayCommand(core.OpenAppsDirectory);
         RestartServerCommand = new RelayCommand(RestartServer);
         RefreshNetworkAdaptersCommand = new RelayCommand(RefreshNetworkAdapters);
@@ -45,6 +55,10 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand OpenAppsDirectoryCommand { get; }
     public ICommand RestartServerCommand { get; }
     public ICommand RefreshNetworkAdaptersCommand { get; }
+
+    public bool CanCheckUpdates => !updateState.IsChecking;
+    public bool HasUpdateNotes => updateState.Release != null && !updateState.IsChecking;
+    public string UpdateStatus => updateState.Message;
 
     public IReadOnlyList<string> IpVersionOptions { get; } = ["IPv4", "IPv6"];
 

@@ -91,6 +91,7 @@ public sealed class SettingsService : IDisposable
             if (loaded.NetworkAdapterName is { } networkAdapterName) Current.NetworkAdapterName = networkAdapterName;
             if (loaded.PreferredIpVersion is { } preferredIpVersion) Current.PreferredIpVersion = preferredIpVersion;
             if (loaded.SelectedIpAddress is { } selectedIpAddress) Current.SelectedIpAddress = selectedIpAddress;
+            if (loaded.LastNotifiedBuild is { } lastNotifiedBuild) Current.LastNotifiedBuild = lastNotifiedBuild;
         }
         catch
         {
@@ -114,6 +115,7 @@ public sealed class SettingsService : IDisposable
                     NetworkAdapterName = Current.NetworkAdapterName,
                     PreferredIpVersion = Current.PreferredIpVersion,
                     SelectedIpAddress = Current.SelectedIpAddress,
+                    LastNotifiedBuild = Current.LastNotifiedBuild,
                 };
                 var json = JsonSerializer.Serialize(dto, JsonOptions);
                 File.WriteAllText(configPath, json);
@@ -153,5 +155,6 @@ public sealed class SettingsService : IDisposable
         public string? NetworkAdapterName { get; set; }
         public string? PreferredIpVersion { get; set; }
         public string? SelectedIpAddress { get; set; }
+        public int? LastNotifiedBuild { get; set; }
     }
 }

@@ -1,0 +1,116 @@
+<ui:ContentDialog x:Class="AppMapper.Controller.Views.UpdateDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    DialogMaxWidth="560" DialogMargin="24" DefaultButton="Close"
+    PrimaryButtonText="前往下载" CloseButtonText="稍后"
+    KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle">
+    <ui:ContentDialog.Resources>
+        <!-- MD3 light roles from the same blue Tonal Spot palette used by Android. -->
+        <SolidColorBrush x:Key="UpdateSurface" Color="#E6ECF4" />
+        <SolidColorBrush x:Key="UpdateOnSurface" Color="#191C20" />
+        <SolidColorBrush x:Key="UpdateOnSurfaceVariant" Color="#43474E" />
+        <SolidColorBrush x:Key="UpdatePrimary" Color="#39608F" />
+        <SolidColorBrush x:Key="UpdateHover" Color="#1439608F" />
+        <SolidColorBrush x:Key="UpdatePressed" Color="#1F39608F" />
+        <SolidColorBrush x:Key="UpdateError" Color="#BA1A1A" />
+        <CornerRadius x:Key="UpdateDialogShape">28</CornerRadius>
+        <Style x:Key="UpdateBody" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="LineHeight" Value="20" />
+            <Setter Property="Foreground" Value="{StaticResource UpdateOnSurfaceVariant}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="UpdateAction" TargetType="Button">
+            <Setter Property="MinHeight" Value="48" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Foreground" Value="{StaticResource UpdatePrimary}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="24"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource UpdateHover}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter Property="Background" Value="{StaticResource UpdatePressed}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource UpdatePrimary}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </ui:ContentDialog.Resources>
+    <ui:ContentDialog.TitleTemplate>
+        <DataTemplate>
+            <TextBlock Text="{Binding}" FontSize="24" LineHeight="32"
+                Foreground="{StaticResource UpdateOnSurface}" TextWrapping="Wrap" />
+        </DataTemplate>
+    </ui:ContentDialog.TitleTemplate>
+    <ui:ContentDialog.Template>
+        <ControlTemplate TargetType="{x:Type ui:ContentDialog}">
+            <Border MaxWidth="{TemplateBinding DialogWidth}" MaxHeight="{TemplateBinding DialogHeight}"
+                Margin="{TemplateBinding DialogMargin}" Padding="24"
+                Background="{StaticResource UpdateSurface}" CornerRadius="{StaticResource UpdateDialogShape}"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <ContentPresenter Content="{TemplateBinding Title}"
+                        ContentTemplate="{TemplateBinding TitleTemplate}" Margin="0,0,0,16" />
+                    <ContentPresenter Grid.Row="1" Content="{TemplateBinding Content}" />
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                        <Button x:Name="CloseButton" Style="{StaticResource UpdateAction}"
+                            Content="{TemplateBinding CloseButtonText}" IsDefault="True" Margin="0,0,8,0"
+                            Command="{Binding TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
+                            CommandParameter="{x:Static ui:ContentDialogButton.Close}" />
+                        <Button x:Name="PrimaryButton" Style="{StaticResource UpdateAction}"
+                            Content="{TemplateBinding PrimaryButtonText}"
+                            Command="{Binding TemplateButtonCommand, RelativeSource={RelativeSource TemplatedParent}}"
+                            CommandParameter="{x:Static ui:ContentDialogButton.Primary}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </ControlTemplate>
+    </ui:ContentDialog.Template>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <TextBlock x:Name="VersionSummary" Style="{StaticResource UpdateBody}" Margin="0,0,0,16" />
+        <TextBlock Grid.Row="1" Text="更新说明" FontSize="14" FontWeight="Medium" LineHeight="20"
+            Foreground="{StaticResource UpdateOnSurface}" Margin="0,0,0,8" />
+        <TextBox x:Name="NotesText" Grid.Row="2" IsReadOnly="True" IsReadOnlyCaretVisible="True"
+            FontSize="14" TextBlock.LineHeight="20" Foreground="{StaticResource UpdateOnSurfaceVariant}"
+            TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+            Background="Transparent" BorderThickness="0" Padding="0">
+            <TextBox.Template>
+                <ControlTemplate TargetType="TextBox">
+                    <ScrollViewer x:Name="PART_ContentHost" />
+                </ControlTemplate>
+            </TextBox.Template>
+        </TextBox>
+        <TextBlock x:Name="DownloadError" Grid.Row="3" Style="{StaticResource UpdateBody}"
+            Foreground="{StaticResource UpdateError}" Visibility="Collapsed" Margin="0,8,0,0" />
+    </Grid>
+</ui:ContentDialog>

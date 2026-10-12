@@ -1,0 +1,121 @@
+package dev.youximi.appmapper.data
+
+import dev.youximi.appmapper.BuildConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+
+enum class UpdateCheckPhase { Idle, Checking, Current, Available, Failed }
+
+data class AppUpdateInfo(
+    val versionName: String,
+    val buildNumber: Int,
+    val notes: String,
+    val releaseUrl: String,
+) {
+    fun isNewerThan(installedBuild: Int): Boolean = buildNumber > installedBuild
+}
+
+data class UpdateCheckState(
+    val phase: UpdateCheckPhase = UpdateCheckPhase.Idle,
+    val release: AppUpdateInfo? = null,
+    val message: String = "尚未检查更新",
+)
+
+object GitHubUpdateChecker {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val mutableState = MutableStateFlow(UpdateCheckState())
+    val state = mutableState.asStateFlow()
+    private var startupChecked = false
+
+    // Process-scoped state survives activity recreation and never retains an Activity.
+    @Synchronized
+    fun checkOnStartup() {
+        if (startupChecked) return
+        startupChecked = true
+        check()
+    }
+
+    @Synchronized
+    fun check() {
+        if (mutableState.value.phase == UpdateCheckPhase.Checking) return
+        mutableState.value = mutableState.value.copy(
+            phase = UpdateCheckPhase.Checking, message = "正在检查更新…",
+        )
+        scope.launch {
+            mutableState.value = try {
+                val release = fetchRelease()
+                val newer = release.isNewerThan(BuildConfig.VERSION_CODE)
+                UpdateCheckState(
+                    phase = if (newer) UpdateCheckPhase.Available else UpdateCheckPhase.Current,
+                    release = release,
+                    message = if (newer) "发现新版本 " + release.versionName else "已是最新版本",
+                )
+            } catch (failure: IOException) {
+                UpdateCheckState(UpdateCheckPhase.Failed,
+                    message = failure.message ?: "无法连接 GitHub，请检查网络后重试")
+            } catch (_: IllegalArgumentException) {
+                UpdateCheckState(UpdateCheckPhase.Failed, message = "发布信息不完整或格式无法识别，请稍后重试")
+            } catch (_: org.json.JSONException) {
+                UpdateCheckState(UpdateCheckPhase.Failed, message = "无法读取发布信息，请稍后重试")
+            }
+        }
+    }
+
+    private fun fetchRelease(): AppUpdateInfo {
+        val connection = URL("https://api.github.com/repos/youximi/AppMapper/releases/latest")
+            .openConnection() as HttpURLConnection
+        try {
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 10_000
+            connection.setRequestProperty("Accept", "application/vnd.github+json")
+            connection.setRequestProperty("User-Agent", "AppMapper/" + BuildConfig.VERSION_NAME)
+            connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+            when (val status = connection.responseCode) {
+                200 -> return parseRelease(connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() })
+                404 -> throw IOException("尚未找到正式发布的版本，请稍后重试")
+                403, 429 -> throw IOException("GitHub 请求受限，请稍后手动重试")
+                else -> throw IOException("GitHub 请求失败（HTTP " + status + "），请稍后重试")
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    internal fun parseRelease(json: String): AppUpdateInfo {
+        val release = JSONObject(json)
+        require(!release.getBoolean("draft") && !release.getBoolean("prerelease"))
+        val tag = release.getString("tag_name")
+        val match = Regex("""^Version\.(\d+\.\d+\.\d+)\.Release([1-9]\d*)$""").matchEntire(tag)
+        requireNotNull(match)
+        val version = match.groupValues[1]
+        val build = match.groupValues[2].toInt()
+        val assetName = "appmapper.android." + version + "." + build + ".apk"
+        val assets = release.getJSONArray("assets")
+        require((0 until assets.length()).any { index ->
+            val asset = assets.getJSONObject(index)
+            asset.optString("name") == assetName &&
+                asset.optString("state") == "uploaded" && asset.optLong("size") > 0
+        })
+        return AppUpdateInfo(version, build, extractNotes(release.optString("body", "")),
+            "https://github.com/youximi/AppMapper/releases/tag/" + tag)
+    }
+
+    internal fun extractNotes(body: String): String {
+        val normalized = body.replace("\r\n", "\n").trim()
+        val marker = "Changes since last build\n"
+        val start = normalized.indexOf(marker)
+        if (start < 0) return normalized.ifBlank { "此版本未提供更新说明" }
+        val changes = normalized.substring(start + marker.length)
+        val end = changes.lastIndexOf("\nFull Comparison:")
+        return (if (end >= 0) changes.substring(0, end) else changes).trim()
+            .ifBlank { "此版本未提供更新说明" }
+    }
+}

@@ -73,5 +73,6 @@
                               RenderOptions.BitmapScalingMode="HighQuality" />
             </ui:TitleBar.Icon>
         </ui:TitleBar>
+        <ui:ContentDialogHost x:Name="UpdateDialogHost" IsDisableSiblingsEnabled="True" />
     </Grid>
 </ui:FluentWindow>

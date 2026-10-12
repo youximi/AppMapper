@@ -31,4 +31,17 @@ public partial class SettingsPage : Page
 
     private void OnOpenLicenses(object sender, RoutedEventArgs e) =>
         new OpenSourceLicensesWindow { Owner = Window.GetWindow(this) }.ShowDialog();
+
+    private async void OnCheckUpdates(object sender, RoutedEventArgs e)
+    {
+        var update = await App.Core.CheckForUpdatesAsync();
+        if (update.Release is { } release && !update.IsChecking && Window.GetWindow(this) is MainWindow window)
+            await window.ShowUpdateDialogAsync(release);
+    }
+
+    private async void OnOpenUpdateNotes(object sender, RoutedEventArgs e)
+    {
+        if (App.Core.GetStateSnapshot().Update.Release is { } release && Window.GetWindow(this) is MainWindow window)
+            await window.ShowUpdateDialogAsync(release);
+    }
 }

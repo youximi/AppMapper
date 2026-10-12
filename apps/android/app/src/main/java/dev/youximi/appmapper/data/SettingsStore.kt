@@ -30,6 +30,12 @@ class SettingsStore(context: Context) {
         prefs.edit().putString("themeColor", value).apply()
     }
 
+    fun getLastNotifiedBuild(): Int = prefs.getInt("lastNotifiedBuild", 0)
+
+    fun saveLastNotifiedBuild(value: Int) {
+        prefs.edit().putInt("lastNotifiedBuild", value).apply()
+    }
+
     fun getDeviceId(): String {
         val existing = prefs.getString("deviceId", null)
         if (existing != null) return existing

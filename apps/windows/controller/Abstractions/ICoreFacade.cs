@@ -33,6 +33,9 @@ public interface ICoreFacade
     /// <summary>获取核心当前完整状态快照（供 UI 启动/恢复时重取）。</summary>
     CoreStateSnapshot GetStateSnapshot();
 
+    Task<UpdateCheckState> CheckForUpdatesAsync();
+    event Action<UpdateCheckState>? UpdateChanged;
+
     /// <summary>实时日志流（后台线程触发）。</summary>
     event Action<LogEntry>? LogEmitted;
 

@@ -20,6 +20,7 @@ public sealed class Settings : INotifyPropertyChanged
     private string networkAdapterName = "";
     private string preferredIpVersion = "IPv4";
     private string selectedIpAddress = "";
+    private int lastNotifiedBuild;
 
     /// <summary>TCP 监听端口。修改后需在 UI 点「重启服务」生效。</summary>
     public int Port
@@ -82,6 +83,12 @@ public sealed class Settings : INotifyPropertyChanged
     {
         get => selectedIpAddress;
         set => SetField(ref selectedIpAddress, value?.Trim() ?? "");
+    }
+
+    public int LastNotifiedBuild
+    {
+        get => lastNotifiedBuild;
+        set => SetField(ref lastNotifiedBuild, value);
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
