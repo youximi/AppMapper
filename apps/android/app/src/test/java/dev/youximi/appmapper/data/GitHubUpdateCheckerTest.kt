@@ -6,12 +6,13 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class GitHubUpdateCheckerTest {
-    private fun release(tag: String = "Version.0.1.0.Release14", body: Any = "更新说明"): JSONObject {
+    private fun release(tag: String = "Version.0.1.0.Release14", body: Any = "更新说明",
+                        assetName: String? = null): JSONObject {
         val build = tag.substringAfterLast("Release")
         val version = tag.removePrefix("Version.").substringBefore(".Release")
         return JSONObject().put("tag_name", tag).put("draft", false).put("prerelease", false)
             .put("body", body).put("assets", JSONArray().put(JSONObject()
-                .put("name", "appmapper.android." + version + "." + build + ".apk")
+                .put("name", assetName ?: "appmapper.android." + version + "." + build + ".apk")
                 .put("state", "uploaded").put("size", 1024)))
     }
 
@@ -23,10 +24,22 @@ class GitHubUpdateCheckerTest {
         assertFalse(info.isNewerThan(15))
     }
 
-    @Test fun currentTagAndDownloadPageAreRecognized() {
-        val info = GitHubUpdateChecker.parseRelease(release("Version.0.1.15.Release15").toString())
-        assertEquals(15, info.buildNumber)
-        assertEquals("https://github.com/youximi/AppMapper/releases/tag/Version.0.1.15.Release15", info.releaseUrl)
+    @Test fun legacyDuplicatePackageNameIsRecognized() {
+        val info = GitHubUpdateChecker.parseRelease(release("Version.0.1.16.Release16",
+            assetName = "appmapper.android.0.1.16.16.apk").toString())
+        assertEquals("0.1.16", info.versionName)
+        assertEquals(16, info.buildNumber)
+        assertEquals("https://github.com/youximi/AppMapper/releases/tag/Version.0.1.16.Release16", info.releaseUrl)
+    }
+
+    @Test fun shortPackageNameIsRecognized() {
+        val info = GitHubUpdateChecker.parseRelease(release("Version.0.1.17.Release17",
+            assetName = "appmapper.android.0.1.17.apk").toString())
+        assertEquals("0.1.17", info.versionName)
+        assertEquals(17, info.buildNumber)
+        assertTrue(info.isNewerThan(16))
+        assertFalse(info.isNewerThan(17))
+        assertEquals("https://github.com/youximi/AppMapper/releases/tag/Version.0.1.17.Release17", info.releaseUrl)
     }
 
     @Test fun preservesCommitBodiesAndBlankLines() {
@@ -61,11 +74,36 @@ class GitHubUpdateCheckerTest {
         GitHubUpdateChecker.parseRelease(release().put("assets", JSONArray()).toString())
     }
 
+    @Test fun requiresCompletedUpload() {
+        for (name in listOf("appmapper.android.0.1.17.apk", "appmapper.android.0.1.17.17.apk")) {
+            val json = release("Version.0.1.17.Release17", assetName = name)
+            json.getJSONArray("assets").getJSONObject(0).put("state", "starter")
+            assertThrows(IllegalArgumentException::class.java) {
+                GitHubUpdateChecker.parseRelease(json.toString())
+            }
+        }
+    }
+
+    @Test fun requiresNonEmptyPackage() {
+        for (name in listOf("appmapper.android.0.1.17.apk", "appmapper.android.0.1.17.17.apk")) {
+            val json = release("Version.0.1.17.Release17", assetName = name)
+            json.getJSONArray("assets").getJSONObject(0).put("size", 0)
+            assertThrows(IllegalArgumentException::class.java) {
+                GitHubUpdateChecker.parseRelease(json.toString())
+            }
+        }
+    }
+
     @Test(expected = IllegalArgumentException::class)
-    fun requiresCompletedUpload() {
-        val json = release()
-        json.getJSONArray("assets").getJSONObject(0).put("state", "starter")
-        GitHubUpdateChecker.parseRelease(json.toString())
+    fun rejectsPackageForDifferentVersion() {
+        GitHubUpdateChecker.parseRelease(release("Version.0.1.17.Release17",
+            assetName = "appmapper.android.0.1.18.apk").toString())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsOtherPlatformPackage() {
+        GitHubUpdateChecker.parseRelease(release("Version.0.1.17.Release17",
+            assetName = "appmapper.windows.0.1.17.zip").toString())
     }
 
     @Test(expected = IllegalArgumentException::class)

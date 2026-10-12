@@ -81,7 +81,7 @@ jobs:
 
           $fullVersion = "Version.$version.$buildKind$buildNumber"
           $releaseTag = $fullVersion
-          $releaseTitle = "Build $fullVersion"
+          $releaseTitle = if ($isMainBranch) { "AppMapper $version" } else { "AppMapper $version (Experiment)" }
           $shortSha = git rev-parse --short HEAD
 
           # --- Branch detection ---
@@ -111,7 +111,6 @@ jobs:
 
           # --- Step outputs ---
           "app_version=$version" >> $env:GITHUB_OUTPUT
-          "build_number=$buildNumber" >> $env:GITHUB_OUTPUT
           "is_prerelease=$isPrerelease" >> $env:GITHUB_OUTPUT
 
       - name: Set up JDK
@@ -207,8 +206,8 @@ jobs:
             throw "Signed release APK not found."
           }
 
-          Copy-Item $apk.FullName "artifacts\appmapper.android.$env:APP_VERSION.$env:BUILD_NUMBER.apk"
-          Compress-Archive -Path "dist\windows\*" -DestinationPath "artifacts\appmapper.windows.$env:APP_VERSION.$env:BUILD_NUMBER.zip" -Force
+          Copy-Item $apk.FullName "artifacts\appmapper.android.$env:APP_VERSION.apk"
+          Compress-Archive -Path "dist\windows\*" -DestinationPath "artifacts\appmapper.windows.$env:APP_VERSION.zip" -Force
 
       - name: Generate release notes
         run: |
@@ -247,7 +246,7 @@ jobs:
             $releaseType,
             "",
             "Codename: $env:RELEASE_CODENAME",
-            "Version: $env:FULL_VERSION",
+            "Version: $env:APP_VERSION",
             "Latest Commit: $env:SHORT_SHA",
             "Branch: $env:SOURCE_BRANCH",
             "",
@@ -259,15 +258,15 @@ jobs:
           $notes += ""
           $notes += "Full Comparison: $comparison"
           $notes += ""
-          $notes += "Corresponding source ($env:GITHUB_SHA): $sourceArchive"
-          $notes += "License texts: embedded in the Android and Windows apps (Settings > Open-source licenses)."
+          $notes += "Corresponding source: [$env:SHORT_SHA]($sourceArchive)"
+          $notes += "Project license: GPL-3.0-only. License texts and third-party notices: Settings > Open-source licenses."
 
           Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: appmapper-${{ steps.metadata.outputs.app_version }}-${{ steps.metadata.outputs.build_number }}
+          name: appmapper-${{ steps.metadata.outputs.app_version }}
           path: artifacts/*
 
       - name: Create GitHub Release

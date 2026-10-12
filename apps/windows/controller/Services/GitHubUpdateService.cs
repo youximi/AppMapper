@@ -13,6 +13,9 @@ public sealed class GitHubUpdateService : IDisposable
     public static string InstalledVersion { get; } = typeof(GitHubUpdateService).Assembly
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "0.1.0";
 
+    public static string InstalledVersionName => typeof(GitHubUpdateService).Assembly
+        .GetName().Version?.ToString(3) ?? "0.1.0";
+
     private readonly HttpClient http;
     private readonly CancellationTokenSource lifetime = new();
     private readonly object gate = new();
@@ -103,10 +106,14 @@ public sealed class GitHubUpdateService : IDisposable
         if (!match.Success || !int.TryParse(match.Groups[2].Value, out var build))
             throw new InvalidDataException("Unknown release version.");
         var version = match.Groups[1].Value;
-        var assetName = $"appmapper.windows.{version}.{build}.zip";
+        var assetName = $"appmapper.windows.{version}.zip";
+        var legacyAssetName = $"appmapper.windows.{version}.{build}.zip";
         if (!release.GetProperty("assets").EnumerateArray().Any(asset =>
-            asset.GetProperty("name").GetString() == assetName &&
-            asset.GetProperty("state").GetString() == "uploaded" && asset.GetProperty("size").GetInt64() > 0))
+        {
+            var name = asset.GetProperty("name").GetString();
+            return (name == assetName || name == legacyAssetName) &&
+                asset.GetProperty("state").GetString() == "uploaded" && asset.GetProperty("size").GetInt64() > 0;
+        }))
             throw new InvalidDataException("Windows package has not been uploaded.");
         var body = release.TryGetProperty("body", out var notes) && notes.ValueKind == JsonValueKind.String
             ? notes.GetString() ?? "" : "";

@@ -97,11 +97,13 @@ object GitHubUpdateChecker {
         requireNotNull(match)
         val version = match.groupValues[1]
         val build = match.groupValues[2].toInt()
-        val assetName = "appmapper.android." + version + "." + build + ".apk"
+        val assetName = "appmapper.android." + version + ".apk"
+        val legacyAssetName = "appmapper.android." + version + "." + build + ".apk"
         val assets = release.getJSONArray("assets")
         require((0 until assets.length()).any { index ->
             val asset = assets.getJSONObject(index)
-            asset.optString("name") == assetName &&
+            val name = asset.optString("name")
+            (name == assetName || name == legacyAssetName) &&
                 asset.optString("state") == "uploaded" && asset.optLong("size") > 0
         })
         return AppUpdateInfo(version, build, extractNotes(release.optString("body", "")),

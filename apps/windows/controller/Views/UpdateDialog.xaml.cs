@@ -18,10 +18,7 @@ public partial class UpdateDialog : ContentDialog
         DialogHostEx = host;
         Title = newer ? "发现新版本" : "更新说明";
         CloseButtonText = newer ? "稍后" : "关闭";
-        var installed = GitHubUpdateService.InstalledVersion;
-        if (GitHubUpdateService.ParseInstalledBuild(installed).HasValue)
-            installed = string.Join('.', installed.Split('.').Skip(1).Take(3));
-        VersionSummary.Text = $"当前版本 {installed}\n最新版本 {release.VersionName}";
+        VersionSummary.Text = $"当前版本 {GitHubUpdateService.InstalledVersionName}\n最新版本 {release.VersionName}";
         NotesText.Text = release.Notes;
     }
 

@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using AppMapper.Controller.Services;
 using AppMapper.Controller.ViewModels;
 
 namespace AppMapper.Controller.Views;
@@ -12,8 +12,7 @@ public partial class SettingsPage : Page
     {
         InitializeComponent();
         DataContext = new SettingsViewModel(App.Core);
-        var version = typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        VersionText.Text = $"版本 {version ?? "0.1.0"}";
+        VersionText.Text = $"版本 {GitHubUpdateService.InstalledVersionName}";
     }
 
     private void OnOpenProject(object sender, RoutedEventArgs e)
