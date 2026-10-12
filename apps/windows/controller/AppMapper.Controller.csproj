@@ -7,6 +7,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>AppMapper</AssemblyName>
+    <ApplicationIcon>Assets/appmapper.ico</ApplicationIcon>
     <RootNamespace>AppMapper.Controller</RootNamespace>
     <Version>0.1.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
@@ -19,6 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="Assets/appmapper.ico" />
+    <Resource Include="Assets/appmapper.png" />
     <EmbeddedResource Include="../../../LICENSE" LogicalName="AppMapper.Licenses.LICENSE" />
     <EmbeddedResource Include="../../../THIRD_PARTY_LICENSES.md" LogicalName="AppMapper.Licenses.THIRD_PARTY_LICENSES.md" />
   </ItemGroup>

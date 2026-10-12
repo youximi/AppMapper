@@ -2,6 +2,7 @@ package dev.youximi.appmapper
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -212,7 +213,13 @@ internal fun SettingsScreen(
                     colors = rowColors,
                     headlineContent = { Text("AppMapper") },
                     supportingContent = { Text("版本 ${BuildConfig.VERSION_NAME}") },
-                    leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                    leadingContent = {
+                        Image(
+                            painterResource(R.drawable.ic_appmapper),
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                        )
+                    },
                 )
                 ListItem(
                     modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLicenses),

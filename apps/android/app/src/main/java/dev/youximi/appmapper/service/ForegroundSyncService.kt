@@ -97,7 +97,7 @@ class ForegroundSyncService : Service() {
         startForeground(
             NotificationId,
             NotificationCompat.Builder(this, ChannelId)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("AppMapper")
                 .setContentText("正在同步当前前台 App")
                 .setOngoing(true)

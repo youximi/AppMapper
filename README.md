@@ -1,5 +1,7 @@
 # AppMapper
 
+<img src="assets/branding/appmapper-icon.svg" width="96" height="96" alt="AppMapper 图标" />
+
 把 Android 手机上**当前正在使用的前台 App**，实时映射成一个 Windows 桌面普通窗口，让现有的电脑端计时、番茄钟或软件使用统计工具把它当成真实的桌面软件来记录使用时长。
 
 > **状态**：早期开发中，尚未完善。
