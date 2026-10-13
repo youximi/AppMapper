@@ -1,6 +1,9 @@
 package dev.youximi.appmapper
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -71,6 +74,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import dev.youximi.appmapper.data.UpdateCheckPhase
 import dev.youximi.appmapper.data.UpdateCheckState
 
@@ -86,12 +90,9 @@ internal fun SettingsScreen(
     onOpenUsageAccess: () -> Unit,
     onPollingSelected: (Long) -> Unit,
     onOpenLogs: () -> Unit,
-    onOpenLicenses: () -> Unit,
+    onOpenAbout: () -> Unit,
     savedComputerCount: Int,
     onOpenDevices: () -> Unit,
-    updateState: UpdateCheckState,
-    onCheckUpdates: () -> Unit,
-    onOpenUpdateNotes: () -> Unit,
 ) {
     var showThemePicker by rememberSaveable { mutableStateOf(false) }
     val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -108,7 +109,6 @@ internal fun SettingsScreen(
         trailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
     )
     val groupColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
-    val hasUpdateNotes = updateState.release != null && updateState.phase != UpdateCheckPhase.Checking
 
     ScreenContent {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -216,45 +216,11 @@ internal fun SettingsScreen(
                     trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
                 )
                 ListItem(
+                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenAbout),
                     colors = rowColors,
-                    headlineContent = { Text("AppMapper") },
-                    supportingContent = { Text("版本 ${BuildConfig.VERSION_NAME}") },
-                    leadingContent = {
-                        Image(
-                            painterResource(R.drawable.ic_appmapper),
-                            contentDescription = null,
-                            modifier = Modifier.size(32.dp),
-                        )
-                    },
-                )
-                ListItem(
-                    modifier = Modifier.clickable(
-                        enabled = updateState.phase != UpdateCheckPhase.Checking,
-                        role = Role.Button, onClick = onCheckUpdates),
-                    colors = rowColors,
-                    headlineContent = { Text("检查更新") },
-                    supportingContent = { Text(updateState.message,
-                        color = if (updateState.phase == UpdateCheckPhase.Failed)
-                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) },
+                    headlineContent = { Text("关于应用") },
+                    supportingContent = { Text("版本、更新与开源许可") },
                     leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
-                )
-                ListItem(
-                    modifier = Modifier.clickable(enabled = hasUpdateNotes,
-                        role = Role.Button, onClick = onOpenUpdateNotes),
-                    colors = if (hasUpdateNotes) rowColors else disabledRowColors,
-                    headlineContent = { Text("更新说明") },
-                    supportingContent = { Text(updateState.release?.let { "最新版本 " + it.versionName }
-                        ?: "检查成功后可查看 Git 提交记录") },
-                    leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
-                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
-                )
-                ListItem(
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLicenses),
-                    colors = rowColors,
-                    headlineContent = { Text("开源许可") },
-                    supportingContent = { Text("查看第三方库与开源协议") },
-                    leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
                     trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
                 )
             }
@@ -289,6 +255,116 @@ internal fun SettingsScreen(
         )
     }
 
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun AboutScreen(
+    updateState: UpdateCheckState,
+    onBack: () -> Unit,
+    onCheckUpdates: () -> Unit,
+    onOpenUpdateNotes: () -> Unit,
+    onOpenLicenses: () -> Unit,
+) {
+    val context = LocalContext.current
+    val repositoryUrl = "https://github.com/youximi/AppMapper"
+    val rowColors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    val disabledRowColors = ListItemDefaults.colors(
+        containerColor = Color.Transparent,
+        headlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        trailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+    )
+    val groupColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
+    val hasUpdateNotes = updateState.release != null && updateState.phase != UpdateCheckPhase.Checking
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("关于应用") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回设置")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
+            ScreenContent {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Image(
+                        painterResource(R.drawable.ic_appmapper),
+                        contentDescription = null,
+                        modifier = Modifier.size(72.dp),
+                    )
+                    Text("AppMapper", style = MaterialTheme.typography.headlineSmall)
+                    Text("版本 ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionTitle("版本与更新")
+                    Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
+                        ListItem(
+                            modifier = Modifier.clickable(
+                                enabled = updateState.phase != UpdateCheckPhase.Checking,
+                                role = Role.Button, onClick = onCheckUpdates),
+                            colors = rowColors,
+                            headlineContent = { Text("检查更新") },
+                            supportingContent = { Text(updateState.message,
+                                color = if (updateState.phase == UpdateCheckPhase.Failed)
+                                    MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) },
+                            leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                        )
+                        ListItem(
+                            modifier = Modifier.clickable(enabled = hasUpdateNotes,
+                                role = Role.Button, onClick = onOpenUpdateNotes),
+                            colors = if (hasUpdateNotes) rowColors else disabledRowColors,
+                            headlineContent = { Text("更新说明") },
+                            supportingContent = { Text(updateState.release?.let { "最新版本 " + it.versionName }
+                                ?: "检查成功后可查看 Git 提交记录") },
+                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
+                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionTitle("开源信息")
+                    Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
+                        ListItem(
+                            modifier = Modifier.clickable(role = Role.Button) {
+                                try {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, repositoryUrl.toUri()))
+                                } catch (_: ActivityNotFoundException) {
+                                    Toast.makeText(context, "无法打开浏览器，请安装或启用浏览器后重试",
+                                        Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            colors = rowColors,
+                            headlineContent = { Text("开源仓库") },
+                            supportingContent = { Text(repositoryUrl) },
+                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
+                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                        )
+                        ListItem(
+                            modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLicenses),
+                            colors = rowColors,
+                            headlineContent = { Text("开源许可") },
+                            supportingContent = { Text("查看第三方库与开源协议") },
+                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
+                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -350,7 +426,7 @@ internal fun OpenSourceLicensesScreen(onBack: () -> Unit) {
                     IconButton(onClick = goBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = if (selectedDocument == null) "返回设置" else "返回开源许可",
+                            contentDescription = if (selectedDocument == null) "返回关于应用" else "返回开源许可",
                         )
                     }
                 },

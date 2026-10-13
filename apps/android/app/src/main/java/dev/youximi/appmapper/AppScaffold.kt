@@ -79,7 +79,7 @@ private enum class MainTab(val label: String, val icon: ImageVector, val inactiv
     Settings("设置", Icons.Filled.Settings, Icons.Outlined.Settings),
 }
 
-private enum class RootPage { Main, Logs, Scanner, Licenses, Devices }
+private enum class RootPage { Main, Logs, Scanner, Licenses, Devices, About }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -217,7 +217,11 @@ internal fun AppScaffold(
     }
 
     BackHandler(enabled = rootPage != RootPage.Main) {
-        rootPage = if (rootPage == RootPage.Scanner) scannerReturnPage else RootPage.Main
+        rootPage = when (rootPage) {
+            RootPage.Scanner -> scannerReturnPage
+            RootPage.Licenses -> RootPage.About
+            else -> RootPage.Main
+        }
     }
 
     Crossfade(targetState = rootPage, animationSpec = tween(220), label = "root page") { page ->
@@ -225,7 +229,18 @@ internal fun AppScaffold(
             if (page == RootPage.Logs) {
                 LogsScreen(coordinator = coordinator, onBack = { rootPage = RootPage.Main })
             } else if (page == RootPage.Licenses) {
-                OpenSourceLicensesScreen(onBack = { rootPage = RootPage.Main })
+                OpenSourceLicensesScreen(onBack = { rootPage = RootPage.About })
+            } else if (page == RootPage.About) {
+                AboutScreen(
+                    updateState = updateState,
+                    onBack = { rootPage = RootPage.Main },
+                    onCheckUpdates = coordinator::checkUpdates,
+                    onOpenUpdateNotes = {
+                        updateDownloadError = null
+                        showUpdateDialog = true
+                    },
+                    onOpenLicenses = { rootPage = RootPage.Licenses },
+                )
             } else if (page == RootPage.Devices) {
                 DevicesScreen(
                     pairing = appState.pairing,
@@ -354,13 +369,7 @@ internal fun AppScaffold(
                                                     coordinator.savePollingMs(it)
                                                 },
                                                 onOpenLogs = { rootPage = RootPage.Logs },
-                                                onOpenLicenses = { rootPage = RootPage.Licenses },
-                                                updateState = updateState,
-                                                onCheckUpdates = coordinator::checkUpdates,
-                                                onOpenUpdateNotes = {
-                                                    updateDownloadError = null
-                                                    showUpdateDialog = true
-                                                },
+                                                onOpenAbout = { rootPage = RootPage.About },
                                                 savedComputerCount = appState.pairing.computers.size,
                                                 onOpenDevices = {
                                                     scanError = ""

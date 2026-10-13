@@ -98,7 +98,7 @@ msbuild apps\windows\mapper\AppMapper.Mapper.vcxproj /p:Configuration=Release /p
 
 ## 检查更新
 
-Android 和 Windows 客户端每次进程启动后自动检查一次 GitHub 正式版；返回前台、恢复托盘窗口或重建 Android 页面不会再次自动请求。设置中可随时点击「检查更新」，并通过「更新说明」查看最新版本的 Git 提交标题、作者和完整正文。
+Android 和 Windows 客户端每次进程启动后自动检查一次 GitHub 正式版；返回前台、恢复托盘窗口或重建 Android 页面不会再次自动请求。Android 的「设置 → 关于应用」与 Windows 的设置中可随时点击「检查更新」，并通过「更新说明」查看最新版本的 Git 提交标题、作者和完整正文。
 
 发现新版本时显示更新弹窗，同一构建只自动提醒一次。Android 在首页可见且权限流程结束后提示；Windows 在主窗口可见并激活后提示，托盘运行时保留检查结果。点击「前往下载」打开该版本的 GitHub Release 页面，由用户下载安装 Android APK 或 Windows ZIP。Android 覆盖安装需要保持相同包名及发行签名。
 
@@ -133,6 +133,6 @@ Android 客户端需要以下权限，全部用于核心功能：
 
 ## License
 
-本项目采用 [GPL-3.0-only](./LICENSE) 协议。Windows 与 Android 发行版所用组件的许可和版权声明见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。Windows 程序与 Android APK 内置这两份文件，可在「设置 → 开源许可」中离线查看；Windows 压缩包不再单独附带这两份文件。GitHub Release 提供对应构建提交的源码下载入口。
+本项目采用 [GPL-3.0-only](./LICENSE) 协议。Windows 与 Android 发行版所用组件的许可和版权声明见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。Windows 程序与 Android APK 内置这两份文件，分别可在「设置 → 开源许可」与「设置 → 关于应用 → 开源许可」中离线查看；GitHub Release 提供对应构建提交的源码下载入口。
 
 
