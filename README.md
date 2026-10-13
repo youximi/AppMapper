@@ -151,4 +151,16 @@ Android 客户端需要以下权限，全部用于核心功能：
 
 Windows 程序和 Android APK 均内置这两份文件，可分别在「设置 → 开源许可」和「设置 → 关于应用 → 开源许可」中离线查看。GitHub Release 提供对应构建提交的源码下载入口。
 
+## 鸣谢
+
+感谢以下开源项目的作者和维护者：
+
+- [Jetpack Compose](https://developer.android.com/compose) 与 [Material 3](https://developer.android.com/jetpack/androidx/releases/compose-material3)：Android 界面、组件和主题。
+- [kotlinx.coroutines](https://github.com/Kotlin/kotlinx.coroutines)：Android 端的异步任务和后台同步。
+- [ZXing Android Embedded](https://github.com/journeyapps/zxing-android-embedded) 与 [ZXing](https://github.com/zxing/zxing)：手机端配对二维码的扫描和识别。
+- [WPF UI](https://github.com/lepoco/wpfui)：Windows 界面控件、主题和托盘支持。
+- [QRCoder](https://github.com/Shane32/QRCoder)：电脑端配对二维码的生成。
+
+完整的第三方组件清单和许可见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
+
 
