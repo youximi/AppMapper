@@ -3,11 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="设备" ScrollViewer.CanContentScroll="False">
-    <Grid Margin="24" VerticalAlignment="Top">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <Grid Margin="24" VerticalAlignment="Top" RowDefinitions="Auto,*">
 
         <TextBlock Grid.Row="0" Text="设备" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,16" />
 
@@ -26,12 +22,7 @@
                 <DataTemplate>
                     <ui:Card>
                         <StackPanel>
-                            <Grid Margin="0,0,0,20">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                            <Grid Margin="0,0,0,20" ColumnDefinitions="Auto,*,Auto">
                                 <ui:SymbolIcon Symbol="Phone24" FontSize="24"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                                VerticalAlignment="Top" Margin="0,2,12,0" />
@@ -64,11 +55,7 @@
                                 </TextBlock.Style>
                             </TextBlock>
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
+                            <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Text="最后消息" FontSize="12" VerticalAlignment="Center"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <TextBlock Grid.Column="1" Text="{Binding LastSeen, StringFormat=\{0:HH:mm:ss\}}" />

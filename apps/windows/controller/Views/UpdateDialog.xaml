@@ -67,12 +67,7 @@
                 Margin="{TemplateBinding DialogMargin}" Padding="24"
                 Background="{StaticResource UpdateSurface}" CornerRadius="{StaticResource UpdateDialogShape}"
                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
+                <Grid RowDefinitions="Auto,*,Auto">
                     <ContentPresenter Content="{TemplateBinding Title}"
                         ContentTemplate="{TemplateBinding TitleTemplate}" Margin="0,0,0,16" />
                     <ContentPresenter Grid.Row="1" Content="{TemplateBinding Content}" />
@@ -90,13 +85,7 @@
             </Border>
         </ControlTemplate>
     </ui:ContentDialog.Template>
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
         <TextBlock x:Name="VersionSummary" Style="{StaticResource UpdateBody}" Margin="0,0,0,16" />
         <TextBlock Grid.Row="1" Text="更新说明" FontSize="14" FontWeight="Medium" LineHeight="20"
             Foreground="{StaticResource UpdateOnSurface}" Margin="0,0,0,8" />

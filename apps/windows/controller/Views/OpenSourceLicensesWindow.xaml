@@ -8,12 +8,7 @@
         ExtendsContentIntoTitleBar="True"
         WindowCornerPreference="Round"
         WindowStartupLocation="CenterOwner">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <Grid RowDefinitions="Auto,*,Auto">
 
         <ui:TitleBar Title="开源许可" ShowMinimize="False" ShowMaximize="True" ShowClose="True" />
 
@@ -38,11 +33,7 @@
                         <DataTemplate>
                             <ui:Button Click="OnOpenLibrary" Tag="{Binding}" HorizontalAlignment="Stretch"
                                        HorizontalContentAlignment="Stretch" Padding="16" Margin="0,0,0,8">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
+                                <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
                                         <TextBlock Text="{Binding Version}" Margin="0,4,0,0"
@@ -59,12 +50,7 @@
             </StackPanel>
         </ScrollViewer>
 
-        <Grid x:Name="DocumentPanel" Grid.Row="1" Visibility="Collapsed" Margin="24,16,24,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-            </Grid.RowDefinitions>
+        <Grid x:Name="DocumentPanel" Grid.Row="1" Visibility="Collapsed" Margin="24,16,24,0" RowDefinitions="Auto,Auto,*">
             <ui:Button Content="返回库列表" Click="OnBack" Margin="0,0,0,12" />
             <TextBlock x:Name="DocumentTitle" Grid.Row="1" FontSize="24" FontWeight="SemiBold"
                        TextWrapping="Wrap" Margin="0,0,0,12" />

@@ -132,7 +132,15 @@ jobs:
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "8.0.x"
+          global-json-file: global.json
+
+      - name: Verify .NET SDK
+        run: |
+          $expectedSdk = (Get-Content global.json -Raw | ConvertFrom-Json).sdk.version
+          $actualSdk = dotnet --version
+          if ($LASTEXITCODE -ne 0 -or $actualSdk.Trim() -ne $expectedSdk) {
+            throw "Expected .NET SDK $expectedSdk, got $actualSdk."
+          }
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
@@ -193,6 +201,17 @@ jobs:
             -o dist\windows
 
           Copy-Item apps\windows\mapper\bin\Release\mapper-template.exe dist\windows\
+
+          foreach ($file in @("AppMapper.exe", "AppMapper.dll", "AppMapper.deps.json", "AppMapper.runtimeconfig.json", "mapper-template.exe")) {
+            if (!(Test-Path "dist\windows\$file")) {
+              throw "Windows publish output is missing $file."
+            }
+          }
+
+          $runtimeConfig = Get-Content dist\windows\AppMapper.runtimeconfig.json -Raw | ConvertFrom-Json
+          if ($runtimeConfig.runtimeOptions.tfm -ne "net11.0") {
+            throw "Windows publish output does not target .NET 11."
+          }
 
       - name: Package release assets
         run: |

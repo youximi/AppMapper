@@ -14,6 +14,11 @@ namespace AppMapper.Controller.Services;
 
 public sealed class TcpJsonServer
 {
+    private static readonly JsonDocumentOptions MessageJsonOptions = new()
+    {
+        AllowDuplicateProperties = false,
+    };
+
     private readonly LogService log;
     private readonly PairingStore pairing;
     private readonly DeviceIdentityService identity;
@@ -117,7 +122,7 @@ public sealed class TcpJsonServer
             await using var writer = new StreamWriter(ssl, new UTF8Encoding(false), 1024, true) { AutoFlush = true };
             var firstLine = await reader.ReadLineAsync(handshake.Token);
             if (firstLine == null || firstLine.Length > 8192) return;
-            using var helloDocument = JsonDocument.Parse(firstLine);
+            using var helloDocument = JsonDocument.Parse(firstLine, MessageJsonOptions);
             var hello = helloDocument.RootElement;
             if (ReadString(hello, "type") != "hello" || ReadInt(hello, "protocolVersion") != 2)
             {
@@ -173,7 +178,7 @@ public sealed class TcpJsonServer
                 await writer.WriteLineAsync(JsonSerializer.Serialize(new { type = "challenge", nonce }));
                 var proofLine = await reader.ReadLineAsync(handshake.Token);
                 if (proofLine == null || proofLine.Length > 8192) return;
-                using var proofDocument = JsonDocument.Parse(proofLine);
+                using var proofDocument = JsonDocument.Parse(proofLine, MessageJsonOptions);
                 var proof = proofDocument.RootElement;
                 var signature = ReadString(proof, "signature");
                 if (ReadString(proof, "type") != "proof" || signature == null ||
@@ -206,7 +211,7 @@ public sealed class TcpJsonServer
                 var line = await reader.ReadLineAsync(token);
                 if (line == null) return;
                 if (!IsCurrent(deviceId, client)) return;
-                using var document = JsonDocument.Parse(line);
+                using var document = JsonDocument.Parse(line, MessageJsonOptions);
                 var root = document.RootElement;
                 switch (ReadString(root, "type"))
                 {

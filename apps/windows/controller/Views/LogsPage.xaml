@@ -3,11 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="日志" ScrollViewer.CanContentScroll="False">
-    <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+    <Grid Margin="24" RowDefinitions="Auto,*">
 
         <TextBlock Grid.Row="0" Text="日志" FontSize="28" FontWeight="SemiBold" Margin="0,0,0,16" />
 

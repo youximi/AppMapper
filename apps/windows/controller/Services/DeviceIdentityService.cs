@@ -14,11 +14,11 @@ public sealed class DeviceIdentityService : IDisposable
         ServerId = store.ServerId;
         privateKey = ECDsa.Create();
         privateKey.ImportPkcs8PrivateKey(store.PrivateKeyPkcs8, out _);
-        Fingerprint = Convert.ToHexString(SHA256.HashData(privateKey.ExportSubjectPublicKeyInfo())).ToLowerInvariant();
+        Fingerprint = Convert.ToHexStringLower(SHA256.HashData(privateKey.ExportSubjectPublicKeyInfo()));
         var request = new CertificateRequest("CN=AppMapper", privateKey, HashAlgorithmName.SHA256);
         using var generated = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(5));
-        Certificate = new X509Certificate2(generated.Export(X509ContentType.Pkcs12), (string?)null,
-            X509KeyStorageFlags.UserKeySet);
+        Certificate = X509CertificateLoader.LoadPkcs12(generated.Export(X509ContentType.Pkcs12),
+            password: null, keyStorageFlags: X509KeyStorageFlags.UserKeySet);
     }
 
     public string ServerId { get; }
