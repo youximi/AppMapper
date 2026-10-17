@@ -30,6 +30,12 @@ class SettingsStore(context: Context) {
         prefs.edit().putString("themeColor", value).apply()
     }
 
+    fun getIncludePrereleases(): Boolean = prefs.getBoolean("includePrereleases", false)
+
+    fun saveIncludePrereleases(value: Boolean) {
+        prefs.edit().putBoolean("includePrereleases", value).apply()
+    }
+
     fun getLastNotifiedBuild(): Int = prefs.getInt("lastNotifiedBuild", 0)
 
     fun saveLastNotifiedBuild(value: Int) {

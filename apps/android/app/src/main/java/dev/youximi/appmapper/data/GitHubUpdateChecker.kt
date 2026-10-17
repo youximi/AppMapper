@@ -7,6 +7,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
 import java.net.HttpURLConnection
@@ -37,66 +39,93 @@ object GitHubUpdateChecker {
 
     // Process-scoped state survives activity recreation and never retains an Activity.
     @Synchronized
-    fun checkOnStartup() {
+    fun checkOnStartup(includePrereleases: Boolean = false) {
         if (startupChecked) return
         startupChecked = true
-        check()
+        check(includePrereleases)
     }
 
     @Synchronized
-    fun check() {
+    fun check(includePrereleases: Boolean = false) {
         if (mutableState.value.phase == UpdateCheckPhase.Checking) return
-        mutableState.value = mutableState.value.copy(
+        mutableState.value = UpdateCheckState(
             phase = UpdateCheckPhase.Checking, message = "正在检查更新…",
         )
         scope.launch {
             mutableState.value = try {
-                val release = fetchRelease()
-                val newer = release.isNewerThan(BuildConfig.VERSION_CODE)
+                val release = fetchRelease(includePrereleases)
+                val newer = release?.isNewerThan(BuildConfig.VERSION_CODE) == true
                 UpdateCheckState(
                     phase = if (newer) UpdateCheckPhase.Available else UpdateCheckPhase.Current,
                     release = release,
-                    message = if (newer) "发现新版本 " + release.versionName else "已是最新版本",
+                    message = when {
+                        release == null -> "当前通道暂未发布适用版本"
+                        newer -> "发现新版本 " + release.versionName
+                        else -> "当前通道暂无更新"
+                    },
                 )
             } catch (failure: IOException) {
                 UpdateCheckState(UpdateCheckPhase.Failed,
                     message = failure.message ?: "无法连接 GitHub，请检查网络后重试")
             } catch (_: IllegalArgumentException) {
                 UpdateCheckState(UpdateCheckPhase.Failed, message = "发布信息不完整或格式无法识别，请稍后重试")
-            } catch (_: org.json.JSONException) {
+            } catch (_: JSONException) {
                 UpdateCheckState(UpdateCheckPhase.Failed, message = "无法读取发布信息，请稍后重试")
             }
         }
     }
 
-    private fun fetchRelease(): AppUpdateInfo {
-        val connection = URL("https://api.github.com/repos/youximi/AppMapper/releases/latest")
-            .openConnection() as HttpURLConnection
-        try {
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 10_000
-            connection.setRequestProperty("Accept", "application/vnd.github+json")
-            connection.setRequestProperty("User-Agent", "AppMapper/" + BuildConfig.VERSION_NAME)
-            connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            when (val status = connection.responseCode) {
-                200 -> return parseRelease(connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() })
-                404 -> throw IOException("尚未找到正式发布的版本，请稍后重试")
-                403, 429 -> throw IOException("GitHub 请求受限，请稍后手动重试")
-                else -> throw IOException("GitHub 请求失败（HTTP " + status + "），请稍后重试")
+    private fun fetchRelease(includePrereleases: Boolean): AppUpdateInfo? {
+        var latest: AppUpdateInfo? = null
+        var url: String? = "https://api.github.com/repos/youximi/AppMapper/releases?per_page=100"
+        while (url != null) {
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 10_000
+                connection.setRequestProperty("Accept", "application/vnd.github+json")
+                connection.setRequestProperty("User-Agent", "AppMapper/" + BuildConfig.VERSION_NAME)
+                connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
+                when (val status = connection.responseCode) {
+                    200 -> {
+                        val page = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                        latest = listOfNotNull(latest, selectRelease(page, includePrereleases)).maxByOrNull { it.buildNumber }
+                    }
+                    404 -> throw IOException("尚未找到发布信息，请稍后重试")
+                    403, 429 -> throw IOException("GitHub 请求受限，请稍后手动重试")
+                    else -> throw IOException("GitHub 请求失败（HTTP " + status + "），请稍后重试")
+                }
+                url = Regex("<([^>]+)>;\\s*rel=\"next\"").find(connection.getHeaderField("Link").orEmpty())?.groupValues?.get(1)
+            } finally {
+                connection.disconnect()
             }
-        } finally {
-            connection.disconnect()
         }
+        return latest
     }
 
-    internal fun parseRelease(json: String): AppUpdateInfo {
+    internal fun selectRelease(json: String, includePrereleases: Boolean = false): AppUpdateInfo? {
+        val releases = JSONArray(json)
+        return (0 until releases.length()).mapNotNull { index ->
+            try {
+                parseRelease(releases.getJSONObject(index).toString(), includePrereleases)
+            } catch (_: IllegalArgumentException) {
+                null
+            } catch (_: JSONException) {
+                null
+            }
+        }.maxByOrNull { it.buildNumber }
+    }
+
+    internal fun parseRelease(json: String, includePrereleases: Boolean = false): AppUpdateInfo {
         val release = JSONObject(json)
-        require(!release.getBoolean("draft") && !release.getBoolean("prerelease"))
+        val isPrerelease = release.getBoolean("prerelease")
+        require(!release.getBoolean("draft") && (includePrereleases || !isPrerelease))
         val tag = release.getString("tag_name")
-        val match = Regex("""^Version\.(\d+\.\d+\.\d+)\.Release([1-9]\d*)$""").matchEntire(tag)
+        val match = Regex("""^Version\.(\d+\.\d+\.\d+)\.(Release|Experiment_C)([1-9]\d*)$""").matchEntire(tag)
         requireNotNull(match)
+        require((match.groupValues[2] == "Experiment_C") == isPrerelease)
         val version = match.groupValues[1]
-        val build = match.groupValues[2].toInt()
+        val build = match.groupValues[3].toInt()
         val assetName = "appmapper.android." + version + ".apk"
         val legacyAssetName = "appmapper.android." + version + "." + build + ".apk"
         val assets = release.getJSONArray("assets")
@@ -106,7 +135,9 @@ object GitHubUpdateChecker {
             (name == assetName || name == legacyAssetName) &&
                 asset.optString("state") == "uploaded" && asset.optLong("size") > 0
         })
-        return AppUpdateInfo(version, build, extractNotes(release.optString("body", "")),
+        val changes = extractNotes(release.optString("body", ""))
+        val notes = if (isPrerelease) "测试版（极不稳定，仅供测试）\n\n$changes" else changes
+        return AppUpdateInfo(version, build, notes,
             "https://github.com/youximi/AppMapper/releases/tag/" + tag)
     }
 

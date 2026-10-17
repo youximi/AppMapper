@@ -89,6 +89,7 @@ internal fun AppScaffold(
     val pairingRevision by PairingStore.changes.collectAsStateWithLifecycle()
     val appState by rememberAppState(coordinator, pairingRevision)
     val updateState by coordinator.updateState.collectAsStateWithLifecycle()
+    var includePrereleases by rememberSaveable { mutableStateOf(coordinator.includePrereleases) }
     var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
     var updateDownloadError by remember { mutableStateOf<String?>(null) }
     var rootPage by rememberSaveable { mutableStateOf(RootPage.Main) }
@@ -220,6 +221,13 @@ internal fun AppScaffold(
             } else if (page == RootPage.About) {
                 AboutScreen(
                     updateState = updateState,
+                    includePrereleases = includePrereleases,
+                    onUpdateChannelSelected = {
+                        showUpdateDialog = false
+                        updateDownloadError = null
+                        includePrereleases = it
+                        coordinator.setUpdateChannel(it)
+                    },
                     onBack = { rootPage = RootPage.Main },
                     onCheckUpdates = coordinator::checkUpdates,
                     onOpenUpdateNotes = {

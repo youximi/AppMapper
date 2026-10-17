@@ -1,6 +1,7 @@
 package dev.youximi.appmapper.data
 
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -8,9 +9,11 @@ import org.junit.Test
 class GitHubUpdateCheckerTest {
     private fun release(tag: String = "Version.0.1.0.Release14", body: Any = "更新说明",
                         assetName: String? = null): JSONObject {
-        val build = tag.substringAfterLast("Release")
-        val version = tag.removePrefix("Version.").substringBefore(".Release")
-        return JSONObject().put("tag_name", tag).put("draft", false).put("prerelease", false)
+        val match = requireNotNull(Regex("""^Version\.(\d+\.\d+\.\d+)\.(Release|Experiment_C)(\d+)$""").matchEntire(tag))
+        val version = match.groupValues[1]
+        val build = match.groupValues[3]
+        return JSONObject().put("tag_name", tag).put("draft", false)
+            .put("prerelease", match.groupValues[2] == "Experiment_C")
             .put("body", body).put("assets", JSONArray().put(JSONObject()
                 .put("name", assetName ?: "appmapper.android." + version + "." + build + ".apk")
                 .put("state", "uploaded").put("size", 1024)))
@@ -109,5 +112,81 @@ class GitHubUpdateCheckerTest {
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnknownVersionFormat() {
         GitHubUpdateChecker.parseRelease(release().put("tag_name", "v0.1.15").toString())
+    }
+
+    @Test fun testingChannelAcceptsPrereleasesAndPreservesWarning() {
+        val info = GitHubUpdateChecker.parseRelease(release("Version.0.1.103.Experiment_C103",
+            body = "滚动测试版\n\nChanges since last build\n\n新功能\nFull Comparison: link",
+            assetName = "appmapper.android.0.1.103.apk").toString(), includePrereleases = true)
+        assertEquals(103, info.buildNumber)
+        assertEquals("测试版（极不稳定，仅供测试）\n\n新功能", info.notes)
+        assertEquals("https://github.com/youximi/AppMapper/releases/tag/Version.0.1.103.Experiment_C103", info.releaseUrl)
+        assertFalse(info.isNewerThan(103))
+        assertFalse(info.isNewerThan(104))
+    }
+
+    @Test fun prereleaseLegacyPackageNameIsRecognized() {
+        val info = GitHubUpdateChecker.parseRelease(release("Version.0.1.103.Experiment_C103").toString(), true)
+        assertEquals(103, info.buildNumber)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun stableChannelRejectsExperimentTags() {
+        GitHubUpdateChecker.parseRelease(release("Version.0.1.103.Experiment_C103").toString())
+    }
+
+    @Test fun rejectsInconsistentReleaseMarkersInBothChannels() {
+        val inconsistent = listOf(
+            release("Version.0.1.103.Experiment_C103").put("prerelease", false),
+            release("Version.0.1.104.Release104").put("prerelease", true),
+        )
+        for (json in inconsistent) for (includePrereleases in listOf(false, true)) {
+            assertThrows(IllegalArgumentException::class.java) {
+                GitHubUpdateChecker.parseRelease(json.toString(), includePrereleases)
+            }
+        }
+    }
+
+    @Test fun stableChannelSelectsHighestStableBuild() {
+        val releases = JSONArray().put(release("Version.0.1.105.Experiment_C105"))
+            .put(release("Version.0.1.102.Release102"))
+            .put(release("Version.0.1.104.Release104"))
+        assertEquals(104, GitHubUpdateChecker.selectRelease(releases.toString())?.buildNumber)
+        assertEquals(105, GitHubUpdateChecker.selectRelease(releases.toString(), true)?.buildNumber)
+    }
+
+    @Test fun testingChannelAlsoSelectsNewerStableBuild() {
+        val releases = JSONArray().put(release("Version.0.1.103.Experiment_C103"))
+            .put(release("Version.0.1.104.Release104"))
+        assertEquals(104, GitHubUpdateChecker.selectRelease(releases.toString(), true)?.buildNumber)
+    }
+
+    @Test fun selectsLatestApplicablePlatformPackage() {
+        val releases = JSONArray().put(release("Version.0.1.108.Release108").put("draft", true))
+            .put(release("Version.0.1.107.Experiment_C107", assetName = "appmapper.windows.0.1.107.zip"))
+            .put(release("Version.0.1.106.Experiment_C106").put("assets", JSONArray()))
+            .put(release("Version.0.1.105.Experiment_C105").apply {
+                getJSONArray("assets").getJSONObject(0).put("state", "starter")
+            })
+            .put(release("Version.0.1.104.Release104"))
+        assertEquals(104, GitHubUpdateChecker.selectRelease(releases.toString(), true)?.buildNumber)
+    }
+
+    @Test fun ignoresUnrecognizedIndividualReleases() {
+        val releases = JSONArray().put(JSONObject()).put("unrecognized entry")
+            .put(release("Version.0.1.105.Release105").put("tag_name", "v0.1.105"))
+            .put(release("Version.0.1.104.Release104"))
+        assertEquals(104, GitHubUpdateChecker.selectRelease(releases.toString(), true)?.buildNumber)
+    }
+
+    @Test fun noApplicableReleaseHasNoCandidate() {
+        assertNull(GitHubUpdateChecker.selectRelease("[]", true))
+        val releases = JSONArray().put(release("Version.0.1.103.Experiment_C103"))
+        assertNull(GitHubUpdateChecker.selectRelease(releases.toString()))
+    }
+
+    @Test(expected = JSONException::class)
+    fun malformedPageIsNotAnEmptyReleaseList() {
+        GitHubUpdateChecker.selectRelease("invalid JSON", true)
     }
 }

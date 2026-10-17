@@ -30,8 +30,17 @@ class AppCoordinator(
     private val pairing = PairingStore(activity)
 
     val updateState = GitHubUpdateChecker.state
-    fun checkUpdatesOnStartup() = GitHubUpdateChecker.checkOnStartup()
-    fun checkUpdates() = GitHubUpdateChecker.check()
+    val includePrereleases: Boolean get() = settings.getIncludePrereleases()
+    fun checkUpdatesOnStartup() = GitHubUpdateChecker.checkOnStartup(includePrereleases)
+    fun checkUpdates() = GitHubUpdateChecker.check(includePrereleases)
+
+    fun setUpdateChannel(includePrereleases: Boolean) {
+        if (this.includePrereleases == includePrereleases) return
+        settings.saveIncludePrereleases(includePrereleases)
+        settings.saveLastNotifiedBuild(0)
+        checkUpdates()
+    }
+
     fun shouldNotifyUpdate(release: AppUpdateInfo): Boolean =
         release.isNewerThan(BuildConfig.VERSION_CODE) &&
             release.buildNumber > settings.getLastNotifiedBuild()

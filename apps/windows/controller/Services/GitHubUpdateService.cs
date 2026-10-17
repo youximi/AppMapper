@@ -34,14 +34,14 @@ public sealed class GitHubUpdateService : IDisposable
         http.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
     }
 
-    public async Task<UpdateCheckState> CheckAsync()
+    public async Task<UpdateCheckState> CheckAsync(bool includePrereleases = false)
     {
         UpdateCheckState checking;
         CancellationToken token;
         lock (gate)
         {
             if (disposed || state.IsChecking) return state;
-            checking = state = state with { Phase = UpdateCheckPhase.Checking, Message = "正在检查更新…" };
+            checking = state = new(UpdateCheckPhase.Checking, Message: "正在检查更新…");
             token = lifetime.Token;
         }
         Changed?.Invoke(checking);
@@ -49,21 +49,13 @@ public sealed class GitHubUpdateService : IDisposable
         UpdateCheckState result;
         try
         {
-            using var response = await http.GetAsync(
-                "https://api.github.com/repos/youximi/AppMapper/releases/latest", token).ConfigureAwait(false);
-            if (response.StatusCode == HttpStatusCode.NotFound)
-                throw new HttpRequestException("尚未找到正式发布的版本，请稍后重试");
-            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
-                throw new HttpRequestException("GitHub 请求受限，请稍后手动重试");
-            if (!response.IsSuccessStatusCode)
-                throw new HttpRequestException($"GitHub 请求失败（HTTP {(int)response.StatusCode}），请稍后重试");
-
-            var release = ParseRelease(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+            var release = await FetchReleaseAsync(includePrereleases, token).ConfigureAwait(false);
             var installedBuild = ParseInstalledBuild(InstalledVersion);
-            var newer = release.IsNewerThan(installedBuild);
+            var newer = release?.IsNewerThan(installedBuild) == true;
             result = new(newer ? UpdateCheckPhase.Available : UpdateCheckPhase.Current, release,
-                installedBuild is null ? $"开发构建：可查看最新正式版 {release.VersionName}" :
-                newer ? $"发现新版本 {release.VersionName}" : "已是最新版本");
+                release is null ? "当前通道暂未发布适用版本" :
+                installedBuild is null ? $"开发构建：可查看当前通道版本 {release.VersionName}" :
+                newer ? $"发现新版本 {release.VersionName}" : "当前通道暂无更新");
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { return state; }
         catch (OperationCanceledException)
@@ -89,22 +81,60 @@ public sealed class GitHubUpdateService : IDisposable
         return result;
     }
 
+    private async Task<AppUpdateInfo?> FetchReleaseAsync(bool includePrereleases, CancellationToken token)
+    {
+        AppUpdateInfo? latest = null;
+        string? url = "https://api.github.com/repos/youximi/AppMapper/releases?per_page=100";
+        while (url != null)
+        {
+            using var response = await http.GetAsync(url, token).ConfigureAwait(false);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+                throw new HttpRequestException("尚未找到发布信息，请稍后重试");
+            if (response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests)
+                throw new HttpRequestException("GitHub 请求受限，请稍后手动重试");
+            if (!response.IsSuccessStatusCode)
+                throw new HttpRequestException($"GitHub 请求失败（HTTP {(int)response.StatusCode}），请稍后重试");
+
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token).ConfigureAwait(false));
+            foreach (var item in document.RootElement.EnumerateArray())
+            {
+                AppUpdateInfo candidate;
+                try { candidate = ParseRelease(item.GetRawText(), includePrereleases); }
+                catch (Exception ex) when (ex is InvalidDataException or KeyNotFoundException or InvalidOperationException or FormatException)
+                {
+                    // Ignore drafts, other channels and releases without a complete package for this platform.
+                    continue;
+                }
+                if (latest == null || candidate.BuildNumber > latest.BuildNumber) latest = candidate;
+            }
+
+            var next = response.Headers.TryGetValues("Link", out var links)
+                ? Regex.Match(string.Join(",", links), @"<([^>]+)>;\s*rel=""next""")
+                : Match.Empty;
+            url = next.Success ? next.Groups[1].Value : null;
+        }
+        return latest;
+    }
+
     public static int? ParseInstalledBuild(string version)
     {
         var match = Regex.Match(version, @"^Version\.\d+\.\d+\.\d+\.(?:Release|Experiment_C)([1-9]\d*)(?:\+.*)?$");
         return match.Success && int.TryParse(match.Groups[1].Value, out var build) ? build : null;
     }
 
-    public static AppUpdateInfo ParseRelease(string json)
+    public static AppUpdateInfo ParseRelease(string json, bool includePrereleases = false)
     {
         using var document = JsonDocument.Parse(json);
         var release = document.RootElement;
-        if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean())
-            throw new InvalidDataException("Not a published stable release.");
+        var isPrerelease = release.GetProperty("prerelease").GetBoolean();
+        if (release.GetProperty("draft").GetBoolean() || (!includePrereleases && isPrerelease))
+            throw new InvalidDataException("Release is not in the selected update channel.");
         var tag = release.GetProperty("tag_name").GetString() ?? "";
-        var match = Regex.Match(tag, @"^Version\.(\d+\.\d+\.\d+)\.Release([1-9]\d*)$");
-        if (!match.Success || !int.TryParse(match.Groups[2].Value, out var build))
+        var match = Regex.Match(tag, @"^Version\.(\d+\.\d+\.\d+)\.(Release|Experiment_C)([1-9]\d*)$");
+        if (!match.Success || !int.TryParse(match.Groups[3].Value, out var build))
             throw new InvalidDataException("Unknown release version.");
+        if ((match.Groups[2].Value == "Experiment_C") != isPrerelease)
+            throw new InvalidDataException("Release tag and prerelease flag disagree.");
         var version = match.Groups[1].Value;
         var assetName = $"appmapper.windows.{version}.zip";
         var legacyAssetName = $"appmapper.windows.{version}.{build}.zip";
@@ -117,7 +147,9 @@ public sealed class GitHubUpdateService : IDisposable
             throw new InvalidDataException("Windows package has not been uploaded.");
         var body = release.TryGetProperty("body", out var notes) && notes.ValueKind == JsonValueKind.String
             ? notes.GetString() ?? "" : "";
-        return new(version, build, ExtractNotes(body), "https://github.com/youximi/AppMapper/releases/tag/" + tag);
+        var changes = ExtractNotes(body);
+        if (isPrerelease) changes = "测试版（极不稳定，仅供测试）\n\n" + changes;
+        return new(version, build, changes, "https://github.com/youximi/AppMapper/releases/tag/" + tag);
     }
 
     public static string ExtractNotes(string body)

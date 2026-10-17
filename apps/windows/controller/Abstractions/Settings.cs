@@ -74,6 +74,13 @@ public sealed class Settings : INotifyPropertyChanged
         set => SetField(ref field, value?.Trim() ?? "");
     } = "";
 
+    /// <summary>检查更新时同时接受正式版和测试版；默认仅接受正式版。</summary>
+    public bool IncludePrereleases
+    {
+        get;
+        set => SetField(ref field, value);
+    }
+
     public int LastNotifiedBuild
     {
         get;

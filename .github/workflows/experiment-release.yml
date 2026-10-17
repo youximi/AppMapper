@@ -14,7 +14,8 @@ on:
         type: string
   push:
     branches:
-      - "**"
+      - main
+      - DEV
 
 permissions:
   contents: write
@@ -65,11 +66,11 @@ jobs:
             $codename = "Sunday"
           }
 
-          # --- Build kind & prerelease flag (main = formal, others = pre-release) ---
+          # Keep one workflow so all branches share the same increasing build number.
           $buildNumber = "${{ github.run_number }}"
           $versionParts = $version.Split('.')
           $version = "$($versionParts[0]).$($versionParts[1]).$buildNumber"
-          $isMainBranch = ($refName -eq "main" -or $refName -eq "master")
+          $isMainBranch = ("${{ github.ref }}" -ceq "refs/heads/main")
 
           if ($isMainBranch) {
             $buildKind = "Release"
@@ -81,7 +82,7 @@ jobs:
 
           $fullVersion = "Version.$version.$buildKind$buildNumber"
           $releaseTag = $fullVersion
-          $releaseTitle = if ($isMainBranch) { "AppMapper $version" } else { "AppMapper $version (Experiment)" }
+          $releaseTitle = if ($isMainBranch) { "AppMapper $version" } else { "AppMapper $version (滚动测试版)" }
           $shortSha = git rev-parse --short HEAD
 
           # --- Branch detection ---
@@ -175,9 +176,9 @@ jobs:
         env:
           APPMAPPER_KEYSTORE_BASE64: ${{ secrets.APPMAPPER_KEYSTORE_BASE64 }}
 
-      - name: Build Android release APK
+      - name: Test and build Android release APK
         run: |
-          .\apps\android\gradlew.bat -p apps/android :app:assembleRelease `
+          .\apps\android\gradlew.bat -p apps/android :app:test :app:assembleRelease `
             "-PappVersionName=$env:APP_VERSION" `
             "-PappVersionCode=$env:BUILD_NUMBER"
         env:
@@ -259,7 +260,7 @@ jobs:
             $comparison = "[$previousSha...$env:SHORT_SHA]($compareUrl)"
           }
 
-          $releaseType = if ($env:IS_PRERELEASE -eq "true") { "Experiment Build" } else { "Release Build" }
+          $releaseType = if ($env:IS_PRERELEASE -eq "true") { "滚动测试版：极不稳定，仅供测试。" } else { "Release Build" }
           $sourceArchive = "${{ github.server_url }}/${{ github.repository }}/archive/$env:GITHUB_SHA.zip"
 
           $notes = @(
@@ -283,12 +284,8 @@ jobs:
 
           Set-Content -Path release-notes.md -Value $notes -Encoding UTF8
 
-      - name: Upload workflow artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: appmapper-${{ steps.metadata.outputs.app_version }}
-          path: artifacts/*
-
+      # Archive every build in its own Release; Actions artifacts expire.
+      # Never replace an existing release/tag or delete older releases.
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -300,6 +297,7 @@ jobs:
               --title "$env:RELEASE_TITLE" `
               --notes-file release-notes.md `
               --prerelease `
+              --latest=false `
               --target "$env:GITHUB_SHA"
           } else {
             gh release create "$env:RELEASE_TAG" $assets `

@@ -69,6 +69,12 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         // 设置副作用：RelaunchMapperWhenClosed 变化同步到映射服务。
         Settings.PropertyChanged += (_, e) =>
         {
+            if (e.PropertyName == nameof(Settings.IncludePrereleases))
+            {
+                Settings.LastNotifiedBuild = 0;
+                _ = CheckForUpdatesAsync();
+            }
+
             if (e.PropertyName == nameof(Settings.RelaunchMapperWhenClosed))
                 mapping.RelaunchWhenClosed = Settings.RelaunchMapperWhenClosed;
 
@@ -88,7 +94,7 @@ public sealed class AppMapperCoreEngine : ICoreFacade, IDisposable
         return Task.CompletedTask;
     }
 
-    public Task<UpdateCheckState> CheckForUpdatesAsync() => updates.CheckAsync();
+    public Task<UpdateCheckState> CheckForUpdatesAsync() => updates.CheckAsync(Settings.IncludePrereleases);
 
     public Task StopAsync()
     {

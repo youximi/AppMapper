@@ -105,6 +105,16 @@
                         <ui:Button Content="检查更新" Click="OnCheckUpdates" IsEnabled="{Binding CanCheckUpdates}" Margin="0,0,12,8" />
                         <ui:Button Content="更新说明" Click="OnOpenUpdateNotes" IsEnabled="{Binding HasUpdateNotes}" Margin="0,0,0,8" />
                     </WrapPanel>
+                    <StackPanel Margin="0,0,0,16">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="更新通道" VerticalAlignment="Center" Width="160" />
+                            <ComboBox ItemsSource="{Binding UpdateChannelOptions}"
+                                      SelectedItem="{Binding UpdateChannel, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                      IsEnabled="{Binding CanCheckUpdates}" Width="120" />
+                        </StackPanel>
+                        <TextBlock Text="正式版：仅正式更新。测试版：包含正式版和测试版更新；测试版极不稳定，仅供测试。"
+                                   TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,0" />
+                    </StackPanel>
                     <WrapPanel>
                         <ui:Button Content="项目主页" Click="OnOpenProject" Margin="0,0,12,8" />
                         <ui:Button Content="开源许可" Click="OnOpenLicenses" Margin="0,0,0,8" />

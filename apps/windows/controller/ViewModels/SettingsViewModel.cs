@@ -59,6 +59,13 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool HasUpdateNotes => updateState.Release != null && !updateState.IsChecking;
     public string UpdateStatus => updateState.Message;
 
+    public IReadOnlyList<string> UpdateChannelOptions { get; } = ["正式版", "测试版"];
+    public string UpdateChannel
+    {
+        get => core.Settings.IncludePrereleases ? "测试版" : "正式版";
+        set => core.Settings.IncludePrereleases = value == "测试版";
+    }
+
     public IReadOnlyList<string> IpVersionOptions { get; } = ["IPv4", "IPv6"];
 
     private void RestartServer()
@@ -179,6 +186,9 @@ public sealed class SettingsViewModel : ViewModelBase
             var s = core.Settings;
             switch (e.PropertyName)
             {
+                case nameof(Settings.IncludePrereleases):
+                    OnPropertyChanged(nameof(UpdateChannel));
+                    break;
                 case nameof(Settings.Port):
                     port = s.Port.ToString();
                     OnPropertyChanged(nameof(Port));

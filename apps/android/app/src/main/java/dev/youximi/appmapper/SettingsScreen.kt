@@ -255,12 +255,16 @@ internal fun SettingsScreen(
 @Composable
 internal fun AboutScreen(
     updateState: UpdateCheckState,
+    includePrereleases: Boolean,
+    onUpdateChannelSelected: (Boolean) -> Unit,
     onBack: () -> Unit,
     onCheckUpdates: () -> Unit,
     onOpenUpdateNotes: () -> Unit,
     onOpenLicenses: () -> Unit,
 ) {
     val context = LocalContext.current
+    var showUpdateChannelPicker by rememberSaveable { mutableStateOf(false) }
+    val canCheckUpdates = updateState.phase != UpdateCheckPhase.Checking
     val repositoryUrl = "https://github.com/youximi/AppMapper"
     val rowColors = ListItemDefaults.colors(
         containerColor = Color.Transparent,
@@ -304,13 +308,26 @@ internal fun AboutScreen(
                         ListItem(
                             onClick = onCheckUpdates,
                             modifier = Modifier.semantics { role = Role.Button },
-                            enabled = updateState.phase != UpdateCheckPhase.Checking,
+                            enabled = canCheckUpdates,
                             colors = rowColors,
                             content = { Text("检查更新") },
                             supportingContent = { Text(updateState.message,
                                 color = if (updateState.phase == UpdateCheckPhase.Failed)
                                     MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) },
                             leadingContent = { Icon(painterResource(R.drawable.ic_info), contentDescription = null) },
+                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
+                        )
+                        ListItem(
+                            onClick = { showUpdateChannelPicker = true },
+                            modifier = Modifier.semantics { role = Role.Button },
+                            enabled = canCheckUpdates,
+                            colors = rowColors,
+                            content = { Text("更新通道") },
+                            supportingContent = {
+                                Text(if (includePrereleases) "测试版 · 包含正式版和测试版，测试版极不稳定，仅供测试"
+                                    else "正式版 · 仅接收正式版更新")
+                            },
+                            leadingContent = { Icon(painterResource(R.drawable.ic_settings), contentDescription = null) },
                             trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                         )
                         ListItem(
@@ -359,6 +376,38 @@ internal fun AboutScreen(
                 }
             }
         }
+    }
+    if (showUpdateChannelPicker) {
+        AlertDialog(
+            onDismissRequest = { showUpdateChannelPicker = false },
+            title = { Text("更新通道") },
+            text = {
+                Column(Modifier.selectableGroup().verticalScroll(rememberScrollState())) {
+                    listOf(false, true).forEach { option ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                .selectable(selected = includePrereleases == option, enabled = canCheckUpdates,
+                                    role = Role.RadioButton, onClick = {
+                                        onUpdateChannelSelected(option)
+                                        showUpdateChannelPicker = false
+                                    })
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            RadioButton(selected = includePrereleases == option, onClick = null, enabled = canCheckUpdates)
+                            Column {
+                                Text(if (option) "测试版" else "正式版")
+                                Text(if (option) "包含正式版和测试版更新；测试版极不稳定，仅供测试" else "仅接收正式版更新",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { showUpdateChannelPicker = false }) { Text("取消") } },
+        )
     }
 }
 

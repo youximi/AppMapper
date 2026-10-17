@@ -2,7 +2,7 @@
 
 <img src="assets/branding/appmapper-icon.svg" width="96" height="96" alt="AppMapper 图标" />
 
-AppMapper 把 Android 手机的前台 App 实时映射成一个 Windows 普通窗口，让电脑端番茄钟或软件使用统计工具也能按桌面软件统计它的使用时长。
+AppMapper 将 Android 手机上的前台 App 实时映射为一个 Windows 普通窗口，让电脑端番茄钟或软件使用统计工具也能按桌面软件统计它的使用时长。
 
 > 项目仍在早期开发阶段，尚未完善。
 
@@ -10,7 +10,7 @@ AppMapper 把 Android 手机的前台 App 实时映射成一个 Windows 普通�
 
 大多数桌面计时软件只统计“当前前台窗口”，不向第三方开放接口。AppMapper 不 Hook 这些软件，而是生成标题、图标和进程都贴近手机 App 的小窗口，让计时软件按原有逻辑识别和记录。
 
-每个手机 App 对应一个独立的 Windows 映射 exe，由模板复制并写入图标。与单个动态窗口相比，这种方式更容易被各种识别逻辑接受。
+每个手机 App 都有独立的 Windows 映射 exe，通过复制模板、写入图标生成。与单个动态窗口相比，这种方式更容易被各种识别逻辑接受。
 
 ## 目录结构
 
@@ -49,29 +49,30 @@ appmapper://connect?host=192.168.1.10&port=8765&serverId=<电脑ID>&fingerprint=
 
 Android 端扫描PC上的二维码即可绑定电脑。二维码包含此电脑的公钥指纹用于验证电脑身份，一次性令牌用于授权长期配对。手机用 Android Keystore 中的设备密钥应答电脑的一次性挑战；验证码刷新、短暂断网或电脑重启后，会自动重连。
 
-没有摄像头时，可使用手动输入 IP、端口和 6 位验证码，建立临时连接。临时连接不保存配对，也不会清除已有的长期配对；断线后需要重新输入验证码。
+没有摄像头时，可手动输入 IP、端口和 6 位验证码建立临时连接。临时连接不保存配对，也不会清除已有的长期配对；断线后需要重新输入验证码。
 
-同步时，手机需保持前台服务运行，电脑需运行总控端。电脑端可在设置中开启「开机自启」，Windows 登录后会启动到托盘。手机目前不支持开机自启，重启后需打开 App 并启动同步。
+同步时，手机的前台服务和电脑上的总控端都需要保持运行。电脑端可在设置中开启「开机自启」，Windows 登录后总控端会启动到托盘。手机目前不支持开机自启，重启后需打开 App 并启动同步。
 
-电脑「设备」页可查看设备状态、移除手机。手机「设置 → 设备管理」支持保存多台电脑，卡片显示电脑名称、IP 地址、端口和添加时间。旧版配对记录没有添加时间，会显示「未记录」。
+电脑「设备」页可查看设备状态、移除手机。手机「设置 → 设备管理」可保存多台电脑，卡片显示电脑名称、IP 地址、端口和添加时间。旧版配对记录没有添加时间，会显示「未记录」。
 
-点击「添加电脑」扫码，配对成功后会立即连接这台电脑，并将它设为默认目标，原有电脑继续保留。再次扫描同一台电脑会更新地址和配对信息，保留最初的添加时间。
+点击「添加电脑」扫码。配对成功后会立即连接这台电脑，并将它设为默认目标，同时保留原有电脑记录。再次扫描同一台电脑会更新地址和配对信息，但保留最初的添加时间。
 
-手机一次只向一台电脑同步。在设备管理中点击「连接此电脑」，会立即切换，并将这台电脑设为下次默认目标。
+手机一次只向一台电脑同步。在设备管理中点击「连接此电脑」，会立即切换同步目标，并将这台电脑设为下次默认目标。
 
-首次连接失败时，会停止同步并显示原因，可手动重试。连接成功后遇到短暂断网，会按该电脑保存的地址自动重连。电脑 IP 或端口变化时，请重新扫描当前的配对二维码。
+首次连接失败时，同步会停止并显示失败原因，可手动重试。连接成功后若遇到短暂断网，会按已保存的电脑地址自动重连。电脑 IP 或端口变化时，请重新扫描当前的配对二维码。
 
-点击「忘记电脑」并确认后，下次连接需要重新扫码。忘记当前连接目标会停止同步、清除默认目标，需手动选择其他电脑；忘记其他电脑不影响当前同步。
+点击「忘记电脑」并确认后，下次连接需要重新扫码。忘记当前连接目标会停止同步并清除默认目标，之后需手动选择其他电脑；忘记其他电脑不影响当前同步。
 
 忘记当前已连接的电脑时，手机会同时通知电脑端移除配对。未连接时只移除手机端记录，电脑端残留的记录可在其「设备」页移除。临时连接不加入已保存的电脑列表，也不会改变默认目标。
 
-## 前置环境
+## 使用环境
+- **Android 客户端**：Android 8.0 及以上。
+- **Windows 总控端**：windows 10 22h2以上，并安装 [.NET 11 RC2 桌面运行时（x64）]。CPU 需支持 x86-64-v2（含 SSE4.2、POPCNT）。
 
-- **Android 客户端**：JDK 27、Android SDK Platform 37.2、Build Tools 37.0.0、SDK Command-line Tools 23.0、Android Studio Quail 4（2026.1.4）或更高版本。工程使用 Gradle 9.8.1、AGP 9.4.1、Kotlin/Compose 编译器 2.5.0-Beta1 和 Compose Beta BOM 2026.10.00；最低运行系统仍为 Android 8.0，目标 API 37，Java/Kotlin 字节码目标为 17。
-- **Windows 总控端构建**：.NET SDK `11.0.100-rc.2.26504.105`，版本由根目录 `global.json` 固定。
-- **Windows 总控端运行**：Windows x64，安装 [.NET 11 RC2 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/11.0)。发行 ZIP 使用框架依赖发布，普通 .NET Runtime 不包含 WPF 所需组件。Windows 版本须处于 [.NET 11 官方支持范围](https://github.com/dotnet/core/blob/main/release-notes/11.0/supported-os.md)内。
-- **Windows CPU**：至少支持 x86-64-v2 指令集，包括 SSE4.2 和 POPCNT。ReadyToRun 的 x86-64-v3 目标包含 AVX2；AVX2 不是普通运行场景的统一最低要求，不满足 R2R 目标时受影响的程序集可回退到 JIT。
-- **Windows 映射端**：Visual Studio Build Tools，需勾选「使用 C++ 的桌面开发」，安装 MSVC v143 工具集和 Windows SDK。
+## 开发环境 
+- **Android 客户端**：Android Studio Quail 4（2026.1.4）或更高版本、JDK 27、Android SDK Platform 37.2、Build Tools 37.0.0 和 Command-line Tools 23.0。
+- **Windows 总控端**：.NET SDK `11.0.100-rc.2.26504.105`，与根目录 `global.json` 保持一致。
+- **Windows 映射端**：Visual Studio Build Tools，勾选“使用 C++ 的桌面开发”，安装 MSVC v143 和 Windows SDK。
 
 ## 构建
 
@@ -83,7 +84,7 @@ Android 端扫描PC上的二维码即可绑定电脑。二维码包含此电脑�
 .\apps\android\gradlew.bat -p apps/android :app:assembleDebug
 ```
 
-安装 JDK 27，并将 `JAVA_HOME`（以及 IDE 的 Gradle JDK）指向它。工程通过 `gradle-daemon-jvm.properties` 和 `jvmToolchain(27)` 固定构建 JDK；Wrapper 使用标准 Gradle 启动脚本，不再自动切换到旧版 JBR。Linux/macOS 可执行 `./apps/android/gradlew -p apps/android :app:assembleDebug`。相关检查为 `:app:test :app:lintDebug :app:lintRelease`。
+安装 JDK 27，并将 `JAVA_HOME` 和 IDE 的 Gradle JDK 指向它。工程通过 `gradle-daemon-jvm.properties` 和 `jvmToolchain(27)` 固定构建 JDK；Wrapper 使用标准 Gradle 启动脚本，不再自动切换到旧版 JBR。Linux/macOS 下可执行 `./apps/android/gradlew -p apps/android :app:assembleDebug`。可运行 `:app:test :app:lintDebug :app:lintRelease` 检查。
 
 ### Windows 总控端
 
@@ -97,20 +98,20 @@ dotnet build apps\windows\controller\AppMapper.Controller.csproj -c Release
 msbuild apps\windows\mapper\AppMapper.Mapper.vcxproj /p:Configuration=Release /p:Platform=x64
 ```
 
-映射端构建完成后，将 `apps\windows\mapper\bin\Release\mapper-template.exe` 复制到总控端可执行文件的同级目录。总控端运行时会从该目录读取 exe 模板。
+映射端构建完成后，将 `apps\windows\mapper\bin\Release\mapper-template.exe` 复制到总控端可执行文件所在根目录。总控端运行时会从该目录读取 exe 模板。
 
 ### Windows 发布包
 
-在仓库根目录执行上述映射端构建，再发布总控端并复制模板：
+在仓库根目录完成上述映射端构建后，再发布总控端并复制模板：
 
 ```powershell
 dotnet publish apps\windows\controller\AppMapper.Controller.csproj -c Release -r win-x64 --self-contained false -o dist\windows
 Copy-Item apps\windows\mapper\bin\Release\mapper-template.exe dist\windows\
 ```
 
-升级时保留原目录中的 `config/settings.json`、`config/pairing.dat` 和 `apps`。配对记录继续使用原 Windows 用户的 DPAPI，电脑身份和已配对设备无需重置。
+升级时，请保留原目录中的 `config/settings.json`、`config/pairing.dat` 和 `apps`。配对记录继续使用原 Windows 用户的 DPAPI，电脑身份和已配对设备无需重置。
 
-Linux 可通过 `-p:EnableWindowsTargeting=true` 进行总控端交叉编译。WPF、托盘、DPAPI、原生映射端及前台窗口行为仍需在 Windows 验证。
+
 
 ## 快速开始
 
@@ -123,19 +124,16 @@ Linux 可通过 `-p:EnableWindowsTargeting=true` 进行总控端交叉编译。W
 
 ## 检查更新
 
-Android 和 Windows 客户端每次进程启动后，都会自动检查一次 GitHub 正式版。返回前台、恢复托盘窗口或重建 Android 页面时，不会重复检查。
+Android 和 Windows 客户端每次启动后，会按所选通道自动检查一次更新。返回前台或恢复托盘窗口不会重复检查。
+也可在 Android 的「设置 → 关于应用」或 Windows 客户端设置中点击「检查更新」，通过「更新说明」查看版本改动。
+「检查更新」下方可选择更新通道：
 
-也可随时在 Android 的「设置 → 关于应用」或 Windows 的设置中点击「检查更新」，通过「更新说明」查看最新版本的 Git 提交标题、作者和完整正文。
+- **正式版（默认）**：只接收正式版更新。
+- **测试版**：接收正式版和测试版中的最新适用版本。测试版极不稳定，仅供测试。
 
-发现新版本后，会弹出更新提示，同一构建只自动提醒一次。Android 在首页可见且权限流程结束后提示；Windows 在主窗口可见并激活后提示，托盘运行时会保留检查结果。
-
-点击「前往下载」会打开该版本的 GitHub Release 页面，需手动下载安装 Android APK 或 Windows ZIP。Android 覆盖安装须保持相同包名和发行签名。
-
-检查更新按 CI 构建号比较版本，正式版说明记录相对上一份可达正式版的提交。默认不提示实验版。断网、无法访问 GitHub 或请求受限时，会显示检查失败，可稍后手动重试。
-
-CI 用基础版本的主版本、次版本和运行序号生成显示版本，例如 `0.1.17`。Android 和 Windows 使用相同的显示版本，发布附件分别为 `appmapper.android.0.1.17.apk` 和 `appmapper.windows.0.1.17.zip`，每个平台只发布一份。新客户端也能识别此前带有额外构建号的旧附件名。
-
-`0.1.16` 的检查更新只识别旧附件名，无法发现采用新名称的后续版本。请先到 [GitHub Releases](https://github.com/youximi/AppMapper/releases) 手动安装一次新版，之后即可继续检查更新。不含检查更新功能的更早版本，也需要手动安装新版。
+- 通道设置会在重启和覆盖升级后保留，安装测试版不会自动切换通道。切换通道会重新检查更新，并重置提醒记录。
+发现新版本后，客户端会弹出提示，同一版本默认只自动提醒一次。点击「前往下载」打开对应的 GitHub Release 页面，手动下载并安装 Android APK 或 Windows ZIP。Android 覆盖安装需与已安装版本的包名、发行签名一致。
+切回正式版通道不会提示降级。如果已安装版本高于最新正式版，会显示「当前通道暂无更新」。检查失败时，可稍后手动重试。
 
 ## 权限说明
 
