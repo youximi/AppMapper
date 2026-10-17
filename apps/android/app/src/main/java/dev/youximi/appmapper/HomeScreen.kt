@@ -25,14 +25,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.byValue
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.text.input.maxLengthTrim
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,11 +50,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -69,8 +72,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeCallback
 import com.journeyapps.barcodescanner.BarcodeResult
@@ -82,7 +85,8 @@ import dev.youximi.appmapper.data.PairingRequest
 import dev.youximi.appmapper.service.ConnectionPhase
 import dev.youximi.appmapper.service.ConnectionState
 
-@OptIn(ExperimentalMaterial3Api::class)
+private val digitsOnly = InputTransformation.byValue { _, proposed -> proposed.filter(Char::isDigit) }
+
 @Composable
 internal fun HomeScreen(
     pairedComputer: PairedComputer?,
@@ -96,20 +100,22 @@ internal fun HomeScreen(
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
-    var host by rememberSaveable { mutableStateOf("") }
-    var port by rememberSaveable { mutableStateOf("8765") }
-    var code by remember { mutableStateOf("") }
+    val host = rememberTextFieldState()
+    val port = rememberTextFieldState("8765")
+    // The one-time code must not be persisted in saved instance state.
+    val code = remember { TextFieldState() }
     var useQrCode by rememberSaveable { mutableStateOf(true) }
     var showPairing by rememberSaveable(savedComputerCount > 0) { mutableStateOf(savedComputerCount == 0) }
     var submitted by rememberSaveable { mutableStateOf(false) }
-    val hostInvalid = host.isBlank()
-    val portInvalid = port.toIntOrNull()?.let { it !in 1..65535 } ?: true
-    val codeInvalid = code.length != 6
+    val hostInvalid = host.text.isBlank()
+    val portNumber = port.text.toString().toIntOrNull()
+    val portInvalid = portNumber == null || portNumber !in 1..65535
+    val codeInvalid = code.text.length != 6
     fun connectTemporarily() {
         submitted = true
         if (!hostInvalid && !portInvalid && !codeInvalid) {
-            onPair(PairingRequest.Temporary(host.trim(), port.toInt(), code))
-            code = ""
+            onPair(PairingRequest.Temporary(host.text.toString().trim(), requireNotNull(portNumber), code.text.toString()))
+            code.clearText()
             submitted = false
         }
     }
@@ -176,35 +182,38 @@ internal fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                             OutlinedTextField(
                                 modifier = Modifier.fillMaxWidth(),
-                                value = host,
-                                onValueChange = { host = it },
+                                state = host,
                                 label = { Text("电脑 IP") },
                                 placeholder = { Text("例如 192.168.1.10") },
-                                singleLine = true,
+                                lineLimits = TextFieldLineLimits.SingleLine,
                                 isError = submitted && hostInvalid,
                                 supportingText = if (submitted && hostInvalid) ({ Text("请输入电脑 IP") }) else null,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Ascii,
+                                    autoCorrectEnabled = false,
+                                    imeAction = ImeAction.Next,
+                                ),
                             )
                             OutlinedTextField(
                                 modifier = Modifier.fillMaxWidth(),
-                                value = port,
-                                onValueChange = { port = it.filter(Char::isDigit).take(5) },
+                                state = port,
+                                inputTransformation = digitsOnly.maxLengthTrim(5),
                                 label = { Text("端口") },
-                                singleLine = true,
+                                lineLimits = TextFieldLineLimits.SingleLine,
                                 isError = submitted && portInvalid,
                                 supportingText = if (submitted && portInvalid) ({ Text("端口范围为 1–65535") }) else null,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                             )
                             OutlinedTextField(
                                 modifier = Modifier.fillMaxWidth(),
-                                value = code,
-                                onValueChange = { code = it.filter(Char::isDigit).take(6) },
+                                state = code,
+                                inputTransformation = digitsOnly.maxLengthTrim(6),
                                 label = { Text("6 位验证码") },
-                                singleLine = true,
+                                lineLimits = TextFieldLineLimits.SingleLine,
                                 isError = submitted && codeInvalid,
                                 supportingText = if (submitted && codeInvalid) ({ Text("请输入电脑端显示的 6 位验证码") }) else null,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = { connectTemporarily() }),
+                                onKeyboardAction = { connectTemporarily() },
                             )
                             Button(
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -296,11 +305,9 @@ private fun ConnectionCard(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun QrScannerScreen(onBack: () -> Unit, onResult: (String) -> Unit) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     fun cameraGranted() = ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     var hasPermission by remember { mutableStateOf(cameraGranted()) }
     var requestedPermission by rememberSaveable { mutableStateOf(false) }
@@ -314,12 +321,8 @@ internal fun QrScannerScreen(onBack: () -> Unit, onResult: (String) -> Unit) {
             permissionRequest.launch(Manifest.permission.CAMERA)
         }
     }
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) hasPermission = cameraGranted()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        hasPermission = cameraGranted()
     }
 
     Scaffold(topBar = {
@@ -327,7 +330,7 @@ internal fun QrScannerScreen(onBack: () -> Unit, onResult: (String) -> Unit) {
             title = { Text("扫码绑定") },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回首页")
+                    Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "返回首页")
                 }
             },
         )
@@ -367,7 +370,7 @@ internal fun QrScannerScreen(onBack: () -> Unit, onResult: (String) -> Unit) {
 @Composable
 private fun CameraScanner(onResult: (String) -> Unit) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentOnResult by rememberUpdatedState(onResult)
     var cameraError by remember { mutableStateOf(false) }
     val barcodeView = remember {
         BarcodeView(context).apply {
@@ -380,24 +383,14 @@ private fun CameraScanner(onResult: (String) -> Unit) {
                 override fun cameraError(error: Exception) { cameraError = true }
             })
             decodeSingle(object : BarcodeCallback {
-                override fun barcodeResult(result: BarcodeResult) { onResult(result.text) }
+                override fun barcodeResult(result: BarcodeResult) { currentOnResult(result.text) }
             })
         }
     }
 
-    DisposableEffect(barcodeView, lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> barcodeView.resume()
-                Lifecycle.Event.ON_PAUSE -> barcodeView.pause()
-                else -> Unit
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            barcodeView.pause()
-        }
+    LifecycleResumeEffect(barcodeView) {
+        barcodeView.resume()
+        onPauseOrDispose { barcodeView.pause() }
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally,

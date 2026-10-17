@@ -2,7 +2,7 @@
 
 AppMapper 自有代码采用 GPL-3.0-only，完整条款见 [LICENSE](./LICENSE)。下列第三方组件保留各自的许可证与版权声明。本文件与 LICENSE 一同内置于 Windows 程序及 Android APK，两端用户均可在「设置 → 开源许可」中离线查看。
 
-Windows 版本清单依据 2026-10-16 的 .NET 11 RC2、win-x64 框架依赖发布还原结果整理；Android 清单仍依据 2026-09-29 的 releaseRuntimeClasspath。升级依赖或改变构建配置时应重新核对。
+Windows 版本清单依据 2026-10-16 的 .NET 11 RC2、win-x64 框架依赖发布还原结果整理；Android 清单依据 2026-10-17 的 releaseRuntimeClasspath。升级依赖或改变构建配置时应重新核对。
 
 ## Windows 运行时组件
 
@@ -99,42 +99,54 @@ SOFTWARE.
 
 ## Android 发行版依赖
 
-下表列出当前已解析的 57 个 release 运行时二进制构件，按 Maven group 和版本合并展示。Compose BOM 和仅调试使用的 ui-tooling 没有计入。列出的组件采用 Apache-2.0；许可证全文在表后保留一次。
+下表列出当前已解析的 67 个 release 运行时构件，按 Maven group 和版本合并展示；同一坐标的多个变体只计一次。Compose BOM、仅调试使用的 ui-tooling 及测试依赖没有计入。Core/Activity/Lifecycle 等上游仍可能传递引用已合并能力的空兼容构件；表内保留实际解析结果。列出的组件采用 Apache-2.0；许可证全文在表后保留一次。
 
 | Maven group | artifact（同组已解析构件） | 版本 | 许可 |
 | --- | --- | --- | --- |
-| `androidx.activity` | `activity`, `activity-compose`, `activity-ktx` | `1.9.3` | Apache-2.0 |
-| `androidx.compose.material3` | `material3-android` | `1.3.0` | Apache-2.0 |
-| `androidx.compose.ui` | `ui-util-android`, `ui-unit-android`, `ui-graphics-android`, `ui-geometry-android`, `ui-text-android`, `ui-tooling-preview-android`, `ui-android` | `1.7.4` | Apache-2.0 |
-| `androidx.compose.foundation` | `foundation-layout-android`, `foundation-android` | `1.7.4` | Apache-2.0 |
-| `androidx.compose.material` | `material-ripple-android`, `material-icons-core-android` | `1.7.4` | Apache-2.0 |
-| `androidx.compose.animation` | `animation-core-android`, `animation-android` | `1.7.4` | Apache-2.0 |
-| `androidx.core` | `core`, `core-ktx` | `1.13.1` | Apache-2.0 |
-| `androidx.lifecycle` | `lifecycle-common-jvm`, `lifecycle-livedata-core`, `lifecycle-runtime-android`, `lifecycle-viewmodel-android`, `lifecycle-viewmodel-ktx`, `lifecycle-runtime-compose-android`, `lifecycle-service`, `lifecycle-runtime-ktx-android`, `lifecycle-viewmodel-savedstate`, `lifecycle-process`, `lifecycle-common-java8` | `2.8.7` | Apache-2.0 |
-| `androidx.compose.runtime` | `runtime-saveable-android`, `runtime-android` | `1.7.4` | Apache-2.0 |
-| `org.jetbrains.kotlinx` | `kotlinx-coroutines-core-jvm`, `kotlinx-coroutines-android` | `1.9.0` | Apache-2.0 |
-| `androidx.savedstate` | `savedstate`, `savedstate-ktx` | `1.2.1` | Apache-2.0 |
+| `androidx.activity` | `activity`, `activity-compose`, `activity-ktx` | `1.13.0` | Apache-2.0 |
+| `androidx.annotation` | `annotation-jvm` | `1.10.0` | Apache-2.0 |
 | `androidx.annotation` | `annotation-experimental` | `1.4.1` | Apache-2.0 |
-| `androidx.versionedparcelable` | `versionedparcelable` | `1.1.1` | Apache-2.0 |
 | `androidx.arch.core` | `core-common`, `core-runtime` | `2.2.0` | Apache-2.0 |
-| `androidx.collection` | `collection-jvm`, `collection-ktx` | `1.4.4` | Apache-2.0 |
-| `androidx.annotation` | `annotation-jvm` | `1.8.1` | Apache-2.0 |
-| `org.jetbrains.kotlin` | `kotlin-stdlib` | `2.2.10` | Apache-2.0 |
+| `androidx.autofill` | `autofill` | `1.0.0` | Apache-2.0 |
+| `androidx.collection` | `collection-jvm`, `collection-ktx` | `1.6.0` | Apache-2.0 |
+| `androidx.compose.animation` | `animation-android`, `animation-core-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.foundation` | `foundation-android`, `foundation-layout-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.material` | `material-ripple-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.material3` | `material3-android`, `material3-ripple-android` | `1.5.0-beta01` | Apache-2.0 |
+| `androidx.compose.runtime` | `runtime-android`, `runtime-annotation-android`, `runtime-retain-android`, `runtime-saveable-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.ui` | `ui-android`, `ui-geometry-android`, `ui-graphics-android`, `ui-text-android`, `ui-tooling-preview-android`, `ui-unit-android`, `ui-util-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.concurrent` | `concurrent-futures` | `1.1.0` | Apache-2.0 |
+| `androidx.core` | `core-viewtree` | `1.0.0` | Apache-2.0 |
+| `androidx.core` | `core`, `core-ktx` | `1.19.1` | Apache-2.0 |
+| `androidx.customview` | `customview-poolingcontainer` | `1.0.0` | Apache-2.0 |
+| `androidx.emoji2` | `emoji2` | `1.7.0` | Apache-2.0 |
+| `androidx.graphics` | `graphics-shapes-android` | `1.0.1` | Apache-2.0 |
+| `androidx.graphics` | `graphics-path` | `1.1.0` | Apache-2.0 |
+| `androidx.interpolator` | `interpolator` | `1.0.0` | Apache-2.0 |
+| `androidx.lifecycle` | `lifecycle-common-java8`, `lifecycle-common-jvm`, `lifecycle-livedata-core`, `lifecycle-process`, `lifecycle-runtime-android`, `lifecycle-runtime-compose-android`, `lifecycle-runtime-ktx-android`, `lifecycle-viewmodel-android`, `lifecycle-viewmodel-ktx`, `lifecycle-viewmodel-savedstate-android` | `2.11.0` | Apache-2.0 |
+| `androidx.navigationevent` | `navigationevent-android`, `navigationevent-compose-android` | `1.1.0` | Apache-2.0 |
+| `androidx.profileinstaller` | `profileinstaller` | `1.4.0` | Apache-2.0 |
+| `androidx.savedstate` | `savedstate-android`, `savedstate-compose-android`, `savedstate-ktx` | `1.5.0` | Apache-2.0 |
+| `androidx.startup` | `startup-runtime` | `1.1.1` | Apache-2.0 |
+| `androidx.tracing` | `tracing` | `1.2.0` | Apache-2.0 |
+| `androidx.versionedparcelable` | `versionedparcelable` | `1.1.1` | Apache-2.0 |
+| `androidx.window` | `window`, `window-core-android` | `1.5.0` | Apache-2.0 |
+| `com.google.guava` | `listenablefuture` | `1.0` | Apache-2.0 |
+| `com.google.zxing` | `core` | `3.5.4` | Apache-2.0 |
 | `com.journeyapps` | `zxing-android-embedded` | `4.3.0` | Apache-2.0 |
 | `org.jetbrains` | `annotations` | `23.0.0` | Apache-2.0 |
-| `com.google.zxing` | `core` | `3.4.1` | Apache-2.0 |
-| `androidx.autofill` | `autofill` | `1.0.0` | Apache-2.0 |
-| `androidx.emoji2` | `emoji2` | `1.3.0` | Apache-2.0 |
-| `androidx.graphics` | `graphics-path` | `1.0.1` | Apache-2.0 |
-| `androidx.customview` | `customview-poolingcontainer` | `1.0.0` | Apache-2.0 |
-| `androidx.interpolator` | `interpolator` | `1.0.0` | Apache-2.0 |
-| `androidx.profileinstaller` | `profileinstaller` | `1.3.1` | Apache-2.0 |
-| `androidx.startup` | `startup-runtime` | `1.1.1` | Apache-2.0 |
-| `androidx.tracing` | `tracing` | `1.0.0` | Apache-2.0 |
-| `androidx.concurrent` | `concurrent-futures` | `1.1.0` | Apache-2.0 |
-| `com.google.guava` | `listenablefuture` | `1.0` | Apache-2.0 |
+| `org.jetbrains.kotlin` | `kotlin-stdlib` | `2.5.0-Beta1` | Apache-2.0 |
+| `org.jetbrains.kotlinx` | `kotlinx-coroutines-android`, `kotlinx-coroutines-core-jvm` | `1.11.0` | Apache-2.0 |
+| `org.jetbrains.kotlinx` | `kotlinx-serialization-core-jvm` | `1.7.3` | Apache-2.0 |
+| `org.jspecify` | `jspecify` | `1.0.0` | Apache-2.0 |
 
-许可来源：[AndroidX](https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt)、[Kotlin](https://github.com/JetBrains/kotlin/blob/v2.2.10/license/LICENSE.txt)、[kotlinx.coroutines 1.9.0](https://github.com/Kotlin/kotlinx.coroutines/blob/1.9.0/LICENSE.txt)、[JetBrains annotations](https://github.com/JetBrains/java-annotations)、[JourneyApps ZXing 4.3.0](https://github.com/journeyapps/zxing-android-embedded/blob/v4.3.0/COPYING)、[ZXing Core 3.4.1](https://github.com/zxing/zxing/blob/zxing-3.4.1/LICENSE)、[Guava ListenableFuture](https://github.com/google/guava/blob/master/LICENSE)。
+许可来源：[AndroidX](https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt)、[Kotlin 2.5.0-Beta1](https://github.com/JetBrains/kotlin/blob/v2.5.0-Beta1/license/LICENSE.txt)、[kotlinx.coroutines 1.11.0](https://github.com/Kotlin/kotlinx.coroutines/blob/1.11.0/LICENSE.txt)、[kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization/blob/v1.7.3/LICENSE.txt)、[JetBrains annotations](https://github.com/JetBrains/java-annotations)、[JourneyApps ZXing 4.3.0](https://github.com/journeyapps/zxing-android-embedded/blob/v4.3.0/COPYING)、[ZXing Core 3.5.4](https://github.com/zxing/zxing/blob/zxing-3.5.4/LICENSE)、[Guava ListenableFuture](https://github.com/google/guava/blob/master/LICENSE)、[JSpecify](https://github.com/jspecify/jspecify/blob/v1.0.0/LICENSE)。
+
+### Material Symbols 矢量图标
+
+Android 客户端使用 Google Material Symbols 的 13 个公开 Android XML 矢量资源，来自 [google/material-design-icons（提交 49d4db35df87）](https://github.com/google/material-design-icons/tree/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/android)。来源文件为 `materialsymbolsoutlined` 下的 `add`、`arrow_back`、`check_circle`、`chevron_right`、`home`（含填充变体）、`info`、`list`、`more_vert`、`refresh`、`settings`（含填充变体）和 `warning` 的 24px 版本。
+
+图标由 Google 提供，遵循 [Apache-2.0](https://github.com/google/material-design-icons/blob/49d4db35df873165d6bd6ba09b063c7dafbac2f4/LICENSE)；完整条款同下。项目去除了 XML 主题 tint，由 Compose `Icon` 统一着色；保留官方资源的 RTL 自动镜像设置。
 
 ### Apache License, Version 2.0（Android 组件及 Gradle Wrapper）
 

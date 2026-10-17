@@ -24,12 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,10 +37,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,16 +50,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import dev.youximi.appmapper.data.PairingParser
 import dev.youximi.appmapper.data.PairingRequest
 import dev.youximi.appmapper.data.PairingStore
@@ -74,14 +68,13 @@ import dev.youximi.appmapper.service.ConnectionPhase
 import dev.youximi.appmapper.service.ConnectionState
 import dev.youximi.appmapper.service.SyncStatus
 
-private enum class MainTab(val label: String, val icon: ImageVector, val inactiveIcon: ImageVector) {
-    Home("首页", Icons.Filled.Home, Icons.Outlined.Home),
-    Settings("设置", Icons.Filled.Settings, Icons.Outlined.Settings),
+private enum class MainTab(val label: String, val icon: Int, val inactiveIcon: Int) {
+    Home("首页", R.drawable.ic_home_filled, R.drawable.ic_home),
+    Settings("设置", R.drawable.ic_settings_filled, R.drawable.ic_settings),
 }
 
 private enum class RootPage { Main, Logs, Scanner, Licenses, Devices, About }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AppScaffold(
     coordinator: AppCoordinator,
@@ -100,23 +93,17 @@ internal fun AppScaffold(
     var updateDownloadError by remember { mutableStateOf<String?>(null) }
     var rootPage by rememberSaveable { mutableStateOf(RootPage.Main) }
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.Home) }
-    var pollingMs by rememberSaveable(appState.pollingMs) { mutableStateOf(appState.pollingMs) }
+    var pollingMs by rememberSaveable(appState.pollingMs) { mutableLongStateOf(appState.pollingMs) }
     var scanError by rememberSaveable { mutableStateOf("") }
     var scannerReturnPage by rememberSaveable { mutableStateOf(RootPage.Main) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var showPermissionDialog by rememberSaveable { mutableStateOf(false) }
-    var resumed by remember { mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
+    val lifecycleState by lifecycleOwner.lifecycle.currentStateAsState()
+    val resumed = lifecycleState.isAtLeast(Lifecycle.State.RESUMED)
 
     LaunchedEffect(coordinator) { coordinator.checkUpdatesOnStartup() }
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, _ ->
-            resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
     LaunchedEffect(updateState, resumed, rootPage, selectedTab, pendingAction, showPermissionDialog) {
         val release = updateState.release
         if (resumed && rootPage == RootPage.Main && selectedTab == MainTab.Home &&
@@ -390,20 +377,15 @@ internal fun AppScaffold(
 
 @Composable
 private fun TabIcon(tab: MainTab, selectedTab: MainTab) {
-    Icon(if (tab == selectedTab) tab.icon else tab.inactiveIcon, contentDescription = null)
+    Icon(painterResource(if (tab == selectedTab) tab.icon else tab.inactiveIcon), contentDescription = null)
 }
 
 @Composable
 private fun rememberAppState(coordinator: AppCoordinator, pairingRevision: Long): State<AppState> {
     val state = remember { mutableStateOf(coordinator.loadInitialState()) }
-    val lifecycleOwner = LocalLifecycleOwner.current
     LaunchedEffect(pairingRevision) { state.value = coordinator.loadInitialState() }
-    DisposableEffect(coordinator, lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) state.value = coordinator.loadInitialState()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        state.value = coordinator.loadInitialState()
     }
     return state
 }

@@ -2,9 +2,9 @@ package dev.youximi.appmapper.data
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.util.Base64
+import androidx.core.graphics.drawable.toBitmap
 import java.io.ByteArrayOutputStream
 
 object AppIconEncoder {
@@ -15,11 +15,7 @@ object AppIconEncoder {
         } else {
             val width = drawable.intrinsicWidth.takeIf { it > 0 } ?: 96
             val height = drawable.intrinsicHeight.takeIf { it > 0 } ?: 96
-            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also {
-                val canvas = Canvas(it)
-                drawable.setBounds(0, 0, canvas.width, canvas.height)
-                drawable.draw(canvas)
-            }
+            drawable.toBitmap(width, height, Bitmap.Config.ARGB_8888)
         }
 
         val out = ByteArrayOutputStream()

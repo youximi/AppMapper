@@ -67,7 +67,7 @@ Android 端扫描PC上的二维码即可绑定电脑。二维码包含此电脑�
 
 ## 前置环境
 
-- **Android 客户端**：JDK 17/21、Android SDK Platform 37.0、Build Tools 36.0.0、Android Studio Panda 3（2025.3.3 Patch 1）或更高版本，最低运行系统为 Android 8.0。
+- **Android 客户端**：JDK 27、Android SDK Platform 37.2、Build Tools 37.0.0、SDK Command-line Tools 23.0、Android Studio Quail 4（2026.1.4）或更高版本。工程使用 Gradle 9.8.1、AGP 9.4.1、Kotlin/Compose 编译器 2.5.0-Beta1 和 Compose Beta BOM 2026.10.00；最低运行系统仍为 Android 8.0，目标 API 37，Java/Kotlin 字节码目标为 17。
 - **Windows 总控端构建**：.NET SDK `11.0.100-rc.2.26504.105`，版本由根目录 `global.json` 固定。
 - **Windows 总控端运行**：Windows x64，安装 [.NET 11 RC2 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/11.0)。发行 ZIP 使用框架依赖发布，普通 .NET Runtime 不包含 WPF 所需组件。Windows 版本须处于 [.NET 11 官方支持范围](https://github.com/dotnet/core/blob/main/release-notes/11.0/supported-os.md)内。
 - **Windows CPU**：至少支持 x86-64-v2 指令集，包括 SSE4.2 和 POPCNT。ReadyToRun 的 x86-64-v3 目标包含 AVX2；AVX2 不是普通运行场景的统一最低要求，不满足 R2R 目标时受影响的程序集可回退到 JIT。
@@ -83,7 +83,7 @@ Android 端扫描PC上的二维码即可绑定电脑。二维码包含此电脑�
 .\apps\android\gradlew.bat -p apps/android :app:assembleDebug
 ```
 
-Windows 下，`apps/android/gradlew.bat` 优先使用 JDK 17/21。系统默认 JDK 过新时，会自动尝试使用 Android Studio 自带的 JBR。
+安装 JDK 27，并将 `JAVA_HOME`（以及 IDE 的 Gradle JDK）指向它。工程通过 `gradle-daemon-jvm.properties` 和 `jvmToolchain(27)` 固定构建 JDK；Wrapper 使用标准 Gradle 启动脚本，不再自动切换到旧版 JBR。Linux/macOS 可执行 `./apps/android/gradlew -p apps/android :app:assembleDebug`。相关检查为 `:app:test :app:lintDebug :app:lintRelease`。
 
 ### Windows 总控端
 

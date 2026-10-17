@@ -12,7 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.dp
 import dev.youximi.appmapper.data.AppUpdateInfo
 
@@ -24,7 +25,8 @@ internal fun UpdateDialog(
     downloadError: String?,
 ) {
     val newer = release.isNewerThan(BuildConfig.VERSION_CODE)
-    val notesHeight = (LocalConfiguration.current.screenHeightDp * 0.45f).dp
+    val windowHeight = LocalWindowInfo.current.containerSize.height
+    val notesHeight = with(LocalDensity.current) { windowHeight.toDp() * 0.45f }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (newer) "发现新版本" else "更新说明") },

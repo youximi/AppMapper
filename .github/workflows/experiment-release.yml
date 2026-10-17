@@ -117,17 +117,18 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: "27"
           cache: gradle
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
+          cmdline-tools-version: "16111833"
           packages: platform-tools
 
       - name: Install Android SDK packages
         run: |
-          sdkmanager "platforms;android-37.0" "build-tools;36.0.0"
+          android --no-metrics sdk install "platforms/android-37.2" "build-tools/37.0.0" "platform-tools@37.0.1"
 
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4
