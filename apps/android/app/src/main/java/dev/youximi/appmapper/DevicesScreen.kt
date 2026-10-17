@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -16,12 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -53,7 +48,6 @@ import dev.youximi.appmapper.service.ConnectionState
 import java.text.DateFormat
 import java.util.Date
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DevicesScreen(
     pairing: PairingState,
@@ -74,7 +68,7 @@ internal fun DevicesScreen(
                 title = { Text("设备管理") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回上一页")
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "返回上一页")
                     }
                 },
             )
@@ -82,7 +76,7 @@ internal fun DevicesScreen(
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onAdd,
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                icon = { Icon(painterResource(R.drawable.ic_add), contentDescription = null) },
                 text = { Text("添加电脑") },
             )
         },
@@ -170,7 +164,6 @@ internal fun DevicesScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ComputerCard(
     computer: PairedComputer,

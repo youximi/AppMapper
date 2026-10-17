@@ -7,22 +7,17 @@ namespace AppMapper.Controller.ViewModels;
 /// <summary>配对页 VM：显示本机地址、网络提示、验证码和二维码。</summary>
 public sealed class PairingViewModel : ViewModelBase
 {
-    private string serverAddress = "";
-    private string pairingCode = "";
-    private string networkWarning = "";
-    private BitmapImage? qrImage;
-
     public PairingViewModel(ICoreFacade core)
     {
         ApplySnapshot(core.GetStateSnapshot());
         core.PairingChanged += OnPairingChanged;
     }
 
-    public string ServerAddress { get => serverAddress; private set => SetField(ref serverAddress, value); }
-    public string PairingCode { get => pairingCode; private set => SetField(ref pairingCode, value); }
-    public string NetworkWarning { get => networkWarning; private set => SetField(ref networkWarning, value); }
-    public bool HasNetworkWarning => !string.IsNullOrWhiteSpace(networkWarning);
-    public BitmapImage? QrImage { get => qrImage; private set => SetField(ref qrImage, value); }
+    public string ServerAddress { get; private set => SetField(ref field, value); } = "";
+    public string PairingCode { get; private set => SetField(ref field, value); } = "";
+    public string NetworkWarning { get; private set => SetField(ref field, value); } = "";
+    public bool HasNetworkWarning => !string.IsNullOrWhiteSpace(NetworkWarning);
+    public BitmapImage? QrImage { get; private set => SetField(ref field, value); }
 
     private void ApplySnapshot(CoreStateSnapshot snap)
     {

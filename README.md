@@ -28,7 +28,7 @@ AppMapper/
 ## 技术栈
 
 - **Android 客户端**：Kotlin、Jetpack Compose、Material3、前台服务、`UsageStatsManager`。最低 Android 8.0。
-- **Windows 总控端**：C# WPF（.NET 8）、TLS 服务器、二维码配对、映射进程管理。
+- **Windows 总控端**：C# WPF（.NET 11 RC2）、TLS 服务器、二维码配对、映射进程管理。
 - **Windows 映射端**：C++ Win32，128×128 分层置顶窗口，不联网。
 - **传输协议**：局域网 TLS + JSON Lines（每条消息一行 JSON），协议版本 2。
 
@@ -67,9 +67,11 @@ Android 端扫描PC上的二维码即可绑定电脑。二维码包含此电脑�
 
 ## 前置环境
 
-- **Android 客户端**：JDK 17/21、Android SDK Platform 37.0、Build Tools 36.0.0、Android Studio Panda 3（2025.3.3 Patch 1）或更高版本，最低运行系统为 Android 8.0。
-- **Windows 总控端**：.NET 8 SDK。
-- **Windows 映射端**：Visual Studio Build Tools，需勾选「使用 C++ 的桌面开发」和 Windows SDK。
+- **Android 客户端**：JDK 27、Android SDK Platform 37.2、Build Tools 37.0.0、SDK Command-line Tools 23.0、Android Studio Quail 4（2026.1.4）或更高版本。工程使用 Gradle 9.8.1、AGP 9.4.1、Kotlin/Compose 编译器 2.5.0-Beta1 和 Compose Beta BOM 2026.10.00；最低运行系统仍为 Android 8.0，目标 API 37，Java/Kotlin 字节码目标为 17。
+- **Windows 总控端构建**：.NET SDK `11.0.100-rc.2.26504.105`，版本由根目录 `global.json` 固定。
+- **Windows 总控端运行**：Windows x64，安装 [.NET 11 RC2 Desktop Runtime（x64）](https://dotnet.microsoft.com/download/dotnet/11.0)。发行 ZIP 使用框架依赖发布，普通 .NET Runtime 不包含 WPF 所需组件。Windows 版本须处于 [.NET 11 官方支持范围](https://github.com/dotnet/core/blob/main/release-notes/11.0/supported-os.md)内。
+- **Windows CPU**：至少支持 x86-64-v2 指令集，包括 SSE4.2 和 POPCNT。ReadyToRun 的 x86-64-v3 目标包含 AVX2；AVX2 不是普通运行场景的统一最低要求，不满足 R2R 目标时受影响的程序集可回退到 JIT。
+- **Windows 映射端**：Visual Studio Build Tools，需勾选「使用 C++ 的桌面开发」，安装 MSVC v143 工具集和 Windows SDK。
 
 ## 构建
 
@@ -81,12 +83,12 @@ Android 端扫描PC上的二维码即可绑定电脑。二维码包含此电脑�
 .\apps\android\gradlew.bat -p apps/android :app:assembleDebug
 ```
 
-Windows 下，`apps/android/gradlew.bat` 优先使用 JDK 17/21。系统默认 JDK 过新时，会自动尝试使用 Android Studio 自带的 JBR。
+安装 JDK 27，并将 `JAVA_HOME`（以及 IDE 的 Gradle JDK）指向它。工程通过 `gradle-daemon-jvm.properties` 和 `jvmToolchain(27)` 固定构建 JDK；Wrapper 使用标准 Gradle 启动脚本，不再自动切换到旧版 JBR。Linux/macOS 可执行 `./apps/android/gradlew -p apps/android :app:assembleDebug`。相关检查为 `:app:test :app:lintDebug :app:lintRelease`。
 
 ### Windows 总控端
 
 ```powershell
-dotnet build apps\windows\controller\AppMapper.Controller.csproj
+dotnet build apps\windows\controller\AppMapper.Controller.csproj -c Release
 ```
 
 ### Windows 映射端模板
@@ -96,6 +98,19 @@ msbuild apps\windows\mapper\AppMapper.Mapper.vcxproj /p:Configuration=Release /p
 ```
 
 映射端构建完成后，将 `apps\windows\mapper\bin\Release\mapper-template.exe` 复制到总控端可执行文件的同级目录。总控端运行时会从该目录读取 exe 模板。
+
+### Windows 发布包
+
+在仓库根目录执行上述映射端构建，再发布总控端并复制模板：
+
+```powershell
+dotnet publish apps\windows\controller\AppMapper.Controller.csproj -c Release -r win-x64 --self-contained false -o dist\windows
+Copy-Item apps\windows\mapper\bin\Release\mapper-template.exe dist\windows\
+```
+
+升级时保留原目录中的 `config/settings.json`、`config/pairing.dat` 和 `apps`。配对记录继续使用原 Windows 用户的 DPAPI，电脑身份和已配对设备无需重置。
+
+Linux 可通过 `-p:EnableWindowsTargeting=true` 进行总控端交叉编译。WPF、托盘、DPAPI、原生映射端及前台窗口行为仍需在 Windows 验证。
 
 ## 快速开始
 
@@ -162,5 +177,3 @@ Windows 程序和 Android APK 均内置这两份文件，可分别在「设置 �
 - [QRCoder](https://github.com/Shane32/QRCoder)：电脑端配对二维码的生成。
 
 完整的第三方组件清单和许可见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
-
-

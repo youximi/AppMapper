@@ -8,7 +8,7 @@ using AppMapper.Controller.Models;
 
 namespace AppMapper.Controller.Services;
 
-public sealed class AppMappingService
+public sealed partial class AppMappingService
 {
     private readonly LogService log;
     private readonly string appRoot;
@@ -49,7 +49,8 @@ public sealed class AppMappingService
             {
                 FileName = mapping.ExePath,
                 WorkingDirectory = mapping.Directory,
-                UseShellExecute = true,
+                UseShellExecute = false,
+                KillOnParentExit = true,
             });
             currentProcess = process;
 
@@ -223,47 +224,98 @@ public sealed class AppMappingService
     private const uint SwpShowWindow = 0x0040;
     private static readonly IntPtr HwndTopmost = new(-1);
 
-    [DllImport("user32.dll")]
-    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-    [DllImport("user32.dll")]
-    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 
-    [DllImport("user32.dll")]
-    private static extern bool BringWindowToTop(IntPtr hWnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool BringWindowToTop(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr hWnd);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetForegroundWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetForegroundWindow();
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr GetForegroundWindow();
 
-    [DllImport("user32.dll")]
-    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+    [LibraryImport("user32.dll")]
+    private static partial uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
-    [DllImport("kernel32.dll")]
-    private static extern uint GetCurrentThreadId();
+    [LibraryImport("kernel32.dll")]
+    private static partial uint GetCurrentThreadId();
 
-    [DllImport("user32.dll")]
-    private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool attach);
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool AttachThreadInput(uint idAttach, uint idAttachTo,
+        [MarshalAs(UnmanagedType.Bool)] bool attach);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetActiveWindow(IntPtr hWnd);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr SetActiveWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    private static extern IntPtr SetFocus(IntPtr hWnd);
+    [LibraryImport("user32.dll")]
+    private static partial IntPtr SetFocus(IntPtr hWnd);
 
-    [DllImport("user32.dll")]
-    private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
+    [LibraryImport("user32.dll", SetLastError = true)]
+    private static partial uint SendInput(uint count,
+        [In, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0)] Input[] inputs, int size);
 
     private static void SendAltKey()
     {
-        keybd_event(VkMenu, 0, 0, UIntPtr.Zero);
-        keybd_event(VkMenu, 0, KeyEventFKeyUp, UIntPtr.Zero);
+        Input[] inputs =
+        [
+            new() { Type = InputKeyboard, Data = new InputUnion { Keyboard = new KeyboardInput { VirtualKey = VkMenu } } },
+            new() { Type = InputKeyboard, Data = new InputUnion { Keyboard = new KeyboardInput { VirtualKey = VkMenu, Flags = KeyEventFKeyUp } } },
+        ];
+        var size = Marshal.SizeOf<Input>();
+        var sent = SendInput((uint)inputs.Length, inputs, size);
+        // If only the key-down was inserted, release Alt before giving up.
+        if (sent > 0 && sent < inputs.Length) SendInput(1, [inputs[1]], size);
     }
 
-    private const byte VkMenu = 0x12;
+    private const uint InputKeyboard = 1;
+    private const ushort VkMenu = 0x12;
     private const uint KeyEventFKeyUp = 0x0002;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Input
+    {
+        public uint Type;
+        public InputUnion Data;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
+    private struct InputUnion
+    {
+        [FieldOffset(0)] public MouseInput Mouse;
+        [FieldOffset(0)] public KeyboardInput Keyboard;
+    }
+
+    // MOUSEINPUT is the largest INPUT union member and determines its native size.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MouseInput
+    {
+        public int X;
+        public int Y;
+        public uint MouseData;
+        public uint Flags;
+        public uint Time;
+        public nuint ExtraInfo;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KeyboardInput
+    {
+        public ushort VirtualKey;
+        public ushort ScanCode;
+        public uint Flags;
+        public uint Time;
+        public nuint ExtraInfo;
+    }
 
     private sealed record MappingPaths(string Directory, string ExePath);
 }

@@ -2,6 +2,7 @@ using System.Windows.Input;
 using AppMapper.Controller.Abstractions;
 using AppMapper.Controller.Services;
 using AppMapper.Controller.Models;
+using Wpf.Ui.Input;
 
 namespace AppMapper.Controller.ViewModels;
 
@@ -20,8 +21,6 @@ public sealed class SettingsViewModel : ViewModelBase
     private string selectedNetworkAdapterId = "";
     private string preferredIpVersion = "IPv4";
     private string selectedIpAddress = "";
-    private IReadOnlyList<NetworkAdapterChoice> networkAdapters = [];
-    private IReadOnlyList<IpAddressChoice> ipAddresses = [];
 
     public SettingsViewModel(ICoreFacade core)
     {
@@ -34,9 +33,9 @@ public sealed class SettingsViewModel : ViewModelBase
             OnPropertyChanged(nameof(HasUpdateNotes));
             OnPropertyChanged(nameof(UpdateStatus));
         });
-        OpenAppsDirectoryCommand = new RelayCommand(core.OpenAppsDirectory);
-        RestartServerCommand = new RelayCommand(RestartServer);
-        RefreshNetworkAdaptersCommand = new RelayCommand(RefreshNetworkAdapters);
+        OpenAppsDirectoryCommand = new RelayCommand<object?>(_ => core.OpenAppsDirectory());
+        RestartServerCommand = new RelayCommand<object?>(_ => RestartServer());
+        RefreshNetworkAdaptersCommand = new RelayCommand<object?>(_ => RefreshNetworkAdapters());
 
         var s = core.Settings;
         port = s.Port.ToString();
@@ -80,15 +79,15 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public IReadOnlyList<NetworkAdapterChoice> NetworkAdapters
     {
-        get => networkAdapters;
-        private set => SetField(ref networkAdapters, value);
-    }
+        get;
+        private set => SetField(ref field, value);
+    } = [];
 
     public IReadOnlyList<IpAddressChoice> IpAddresses
     {
-        get => ipAddresses;
-        private set => SetField(ref ipAddresses, value);
-    }
+        get;
+        private set => SetField(ref field, value);
+    } = [];
 
     public string SelectedNetworkAdapterId
     {

@@ -6,7 +6,6 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,17 +30,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.outlined.List
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -72,13 +63,14 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import dev.youximi.appmapper.data.UpdateCheckPhase
 import dev.youximi.appmapper.data.UpdateCheckState
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsScreen(
     hasUsageAccess: Boolean,
@@ -102,11 +94,9 @@ internal fun SettingsScreen(
         PollingOption("标准", 1000L, "每 1 秒检测一次，兼顾响应与耗电"),
         PollingOption("省电", 3000L, "每 3 秒检测一次，减少后台查询"),
     )
-    val rowColors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    val disabledRowColors = ListItemDefaults.colors(
+    val rowColors = ListItemDefaults.colors(
         containerColor = Color.Transparent,
-        headlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-        trailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        disabledContainerColor = Color.Transparent,
     )
     val groupColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
 
@@ -115,16 +105,17 @@ internal fun SettingsScreen(
             SectionTitle("应用权限")
             Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
                 ListItem(
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenUsageAccess),
+                    onClick = onOpenUsageAccess,
+                    modifier = Modifier.semantics { role = Role.Button },
                     colors = rowColors,
-                    headlineContent = { Text("使用情况访问") },
+                    content = { Text("使用情况访问") },
                     supportingContent = { Text(if (hasUsageAccess) "已授权，可以读取前台应用" else "尚未授权，点击前往设置") },
                     leadingContent = {
-                        Icon(if (hasUsageAccess) Icons.Outlined.CheckCircle else Icons.Outlined.Warning,
+                        Icon(painterResource(if (hasUsageAccess) R.drawable.ic_check_circle else R.drawable.ic_warning),
                             contentDescription = null,
                             tint = if (hasUsageAccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
                     },
-                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                    trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                 )
             }
         }
@@ -139,8 +130,9 @@ internal fun SettingsScreen(
                         role = Role.Switch,
                         onValueChange = onDynamicColorChanged,
                     ),
-                    colors = if (dynamicColorAvailable) rowColors else disabledRowColors,
-                    headlineContent = { Text("莫奈取色") },
+                    enabled = dynamicColorAvailable,
+                    colors = rowColors,
+                    content = { Text("莫奈取色") },
                     supportingContent = {
                         Text(when {
                             !dynamicColorAvailable -> "需要 Android 12 或更高版本"
@@ -153,16 +145,16 @@ internal fun SettingsScreen(
                     },
                 )
                 ListItem(
-                    modifier = Modifier.clickable(enabled = !useDynamicColor, role = Role.Button) {
-                        showThemePicker = true
-                    },
-                    colors = if (useDynamicColor) disabledRowColors else rowColors,
-                    headlineContent = { Text("自定义主题色") },
+                    onClick = { showThemePicker = true },
+                    modifier = Modifier.semantics { role = Role.Button },
+                    enabled = !useDynamicColor,
+                    colors = rowColors,
+                    content = { Text("自定义主题色") },
                     supportingContent = {
                         Text(if (useDynamicColor) "关闭莫奈取色后可选择（已保存：${themeColor.label}）"
                             else "当前：${themeColor.label}")
                     },
-                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                    trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                 )
             }
         }
@@ -194,12 +186,13 @@ internal fun SettingsScreen(
             SectionTitle("设备")
             Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
                 ListItem(
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenDevices),
+                    onClick = onOpenDevices,
+                    modifier = Modifier.semantics { role = Role.Button },
                     colors = rowColors,
-                    headlineContent = { Text("设备管理") },
+                    content = { Text("设备管理") },
                     supportingContent = { Text(if (savedComputerCount == 0) "添加电脑并管理连接目标" else "已保存 $savedComputerCount 台电脑") },
                     leadingContent = { Icon(painterResource(R.drawable.ic_computer), contentDescription = null) },
-                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                    trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                 )
             }
         }
@@ -208,20 +201,22 @@ internal fun SettingsScreen(
             SectionTitle("更多")
             Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
                 ListItem(
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLogs),
+                    onClick = onOpenLogs,
+                    modifier = Modifier.semantics { role = Role.Button },
                     colors = rowColors,
-                    headlineContent = { Text("连接日志") },
+                    content = { Text("连接日志") },
                     supportingContent = { Text("查看连接记录与排查信息") },
-                    leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
-                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                    leadingContent = { Icon(painterResource(R.drawable.ic_list), contentDescription = null) },
+                    trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                 )
                 ListItem(
-                    modifier = Modifier.clickable(role = Role.Button, onClick = onOpenAbout),
+                    onClick = onOpenAbout,
+                    modifier = Modifier.semantics { role = Role.Button },
                     colors = rowColors,
-                    headlineContent = { Text("关于应用") },
+                    content = { Text("关于应用") },
                     supportingContent = { Text("版本、更新与开源许可") },
-                    leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                    trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                    leadingContent = { Icon(painterResource(R.drawable.ic_info), contentDescription = null) },
+                    trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                 )
             }
         }
@@ -257,7 +252,6 @@ internal fun SettingsScreen(
 
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AboutScreen(
     updateState: UpdateCheckState,
@@ -268,11 +262,9 @@ internal fun AboutScreen(
 ) {
     val context = LocalContext.current
     val repositoryUrl = "https://github.com/youximi/AppMapper"
-    val rowColors = ListItemDefaults.colors(containerColor = Color.Transparent)
-    val disabledRowColors = ListItemDefaults.colors(
+    val rowColors = ListItemDefaults.colors(
         containerColor = Color.Transparent,
-        headlineColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
-        trailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        disabledContainerColor = Color.Transparent,
     )
     val groupColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)
     val hasUpdateNotes = updateState.release != null && updateState.phase != UpdateCheckPhase.Checking
@@ -283,7 +275,7 @@ internal fun AboutScreen(
                 title = { Text("关于应用") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回设置")
+                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "返回设置")
                     }
                 },
             )
@@ -310,26 +302,27 @@ internal fun AboutScreen(
                     SectionTitle("版本与更新")
                     Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
                         ListItem(
-                            modifier = Modifier.clickable(
-                                enabled = updateState.phase != UpdateCheckPhase.Checking,
-                                role = Role.Button, onClick = onCheckUpdates),
+                            onClick = onCheckUpdates,
+                            modifier = Modifier.semantics { role = Role.Button },
+                            enabled = updateState.phase != UpdateCheckPhase.Checking,
                             colors = rowColors,
-                            headlineContent = { Text("检查更新") },
+                            content = { Text("检查更新") },
                             supportingContent = { Text(updateState.message,
                                 color = if (updateState.phase == UpdateCheckPhase.Failed)
                                     MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant) },
-                            leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
-                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                            leadingContent = { Icon(painterResource(R.drawable.ic_info), contentDescription = null) },
+                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                         )
                         ListItem(
-                            modifier = Modifier.clickable(enabled = hasUpdateNotes,
-                                role = Role.Button, onClick = onOpenUpdateNotes),
-                            colors = if (hasUpdateNotes) rowColors else disabledRowColors,
-                            headlineContent = { Text("更新说明") },
+                            onClick = onOpenUpdateNotes,
+                            modifier = Modifier.semantics { role = Role.Button },
+                            enabled = hasUpdateNotes,
+                            colors = rowColors,
+                            content = { Text("更新说明") },
                             supportingContent = { Text(updateState.release?.let { "最新版本 " + it.versionName }
                                 ?: "检查成功后可查看 Git 提交记录") },
-                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
-                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                            leadingContent = { Icon(painterResource(R.drawable.ic_list), contentDescription = null) },
+                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                         )
                     }
                 }
@@ -338,7 +331,8 @@ internal fun AboutScreen(
                     SectionTitle("开源信息")
                     Card(shape = MaterialTheme.shapes.large, colors = groupColors) {
                         ListItem(
-                            modifier = Modifier.clickable(role = Role.Button) {
+                            modifier = Modifier.semantics { role = Role.Button },
+                            onClick = {
                                 try {
                                     context.startActivity(Intent(Intent.ACTION_VIEW, repositoryUrl.toUri()))
                                 } catch (_: ActivityNotFoundException) {
@@ -347,18 +341,19 @@ internal fun AboutScreen(
                                 }
                             },
                             colors = rowColors,
-                            headlineContent = { Text("开源仓库") },
+                            content = { Text("开源仓库") },
                             supportingContent = { Text(repositoryUrl) },
-                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
-                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                            leadingContent = { Icon(painterResource(R.drawable.ic_list), contentDescription = null) },
+                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                         )
                         ListItem(
-                            modifier = Modifier.clickable(role = Role.Button, onClick = onOpenLicenses),
+                            onClick = onOpenLicenses,
+                            modifier = Modifier.semantics { role = Role.Button },
                             colors = rowColors,
-                            headlineContent = { Text("开源许可") },
+                            content = { Text("开源许可") },
                             supportingContent = { Text("查看第三方库与开源协议") },
-                            leadingContent = { Icon(Icons.AutoMirrored.Outlined.List, contentDescription = null) },
-                            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null) },
+                            leadingContent = { Icon(painterResource(R.drawable.ic_list), contentDescription = null) },
+                            trailingContent = { Icon(painterResource(R.drawable.ic_chevron_right), contentDescription = null) },
                         )
                     }
                 }
@@ -367,7 +362,6 @@ internal fun AboutScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun OpenSourceLicensesScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -425,7 +419,7 @@ internal fun OpenSourceLicensesScreen(onBack: () -> Unit) {
                 navigationIcon = {
                     IconButton(onClick = goBack) {
                         Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
+                            painterResource(R.drawable.ic_arrow_back),
                             contentDescription = if (selectedDocument == null) "返回关于应用" else "返回开源许可",
                         )
                     }
@@ -476,12 +470,14 @@ internal fun OpenSourceLicensesScreen(onBack: () -> Unit) {
                         Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLow) {
                             Column {
                                 ListItem(
-                                    modifier = Modifier.clickable(role = Role.Button) { selectedDocument = library.id }
+                                    onClick = { selectedDocument = library.id },
+                                    modifier = Modifier.semantics { role = Role.Button }
                                         .padding(vertical = 8.dp),
-                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                                    headlineContent = { Text(library.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    colors = ListItemDefaults.colors(containerColor = Color.Transparent,
+                                        disabledContainerColor = Color.Transparent),
+                                    content = { Text(library.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                     supportingContent = { Text("${library.version}\n${library.license}") },
-                                    leadingContent = { Icon(Icons.Outlined.Info, contentDescription = null) },
+                                    leadingContent = { Icon(painterResource(R.drawable.ic_info), contentDescription = null) },
                                 )
                                 if (index != libraries.lastIndex) HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                             }

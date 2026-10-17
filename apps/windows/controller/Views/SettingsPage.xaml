@@ -23,12 +23,7 @@
                     <!-- 网络 -->
                     <TextBlock Text="网络" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
 
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="160" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
+                    <Grid Margin="0,0,0,12" ColumnDefinitions="160,*,Auto">
                         <TextBlock Text="网络适配器" VerticalAlignment="Center" />
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding NetworkAdapters}"
@@ -42,11 +37,7 @@
                                    Margin="12,0,0,0" />
                     </Grid>
 
-                    <Grid Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="160" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                    <Grid Margin="0,0,0,12" ColumnDefinitions="160,*">
                         <TextBlock Text="IP 版本" VerticalAlignment="Center" />
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding IpVersionOptions}"
@@ -55,11 +46,7 @@
                                   HorizontalAlignment="Left" />
                     </Grid>
 
-                    <Grid Margin="0,0,0,16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="160" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                    <Grid Margin="0,0,0,16" ColumnDefinitions="160,*">
                         <TextBlock Text="IP 地址" VerticalAlignment="Center" />
                         <ComboBox Grid.Column="1"
                                   ItemsSource="{Binding IpAddresses}"

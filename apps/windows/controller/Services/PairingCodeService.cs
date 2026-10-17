@@ -54,5 +54,5 @@ public sealed class PairingCodeService : IDisposable
         System.Security.Cryptography.RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
 
     private static string CreateEnrollToken() =>
-        Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        Convert.ToHexStringLower(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
 }

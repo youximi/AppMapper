@@ -1,19 +1,9 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows.Input;
 using System.Windows.Threading;
 using Application = System.Windows.Application;
 
 namespace AppMapper.Controller.ViewModels;
-
-/// <summary>轻量 ICommand 实现（UI 层专用）。</summary>
-public sealed class RelayCommand(Action execute) : ICommand
-{
-    public event EventHandler? CanExecuteChanged;
-    public bool CanExecute(object? parameter) => true;
-    public void Execute(object? parameter) => execute();
-    public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-}
 
 /// <summary>
 /// 所有 ViewModel 的基类。提供 INPC 与跨线程封送助手。

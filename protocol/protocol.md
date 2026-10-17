@@ -1,6 +1,6 @@
 # AppMapper pairing and sync protocol (v2)
 
-Transport: TLS 1.2/1.3 over TCP (default port 8765). The computer presents a self-signed certificate backed by its persistent P-256 identity key. Remembered enrollment and resume pin the SHA-256 fingerprint of the certificate's SubjectPublicKeyInfo. Temporary manual connections accept the certificate without a trusted fingerprint; they are encrypted but do not authenticate the computer. The payload is UTF-8 JSON Lines: one JSON object per line.
+Transport: TLS 1.2/1.3 over TCP (default port 8765). The computer presents a self-signed certificate backed by its persistent P-256 identity key. Remembered enrollment and resume pin the SHA-256 fingerprint of the certificate's SubjectPublicKeyInfo. Temporary manual connections accept the certificate without a trusted fingerprint; they are encrypted but do not authenticate the computer. The payload is UTF-8 JSON Lines: one JSON object per line. Property names must be unique within each JSON object, including nested objects. The computer closes the connection if a message contains duplicate property names or invalid JSON; no error response is guaranteed for these malformed messages.
 
 Version 1 clients receive `upgrade_required`. The rotating six-digit manual code can only start a temporary session. A separate random 128-bit enrollment token appears only in the QR code and can register a remembered phone. Both credentials rotate every 60 seconds or after either is consumed. Neither credential is stored for reconnect or logged.
 

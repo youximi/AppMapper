@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace AppMapper.Controller.Services;
 
-public static class IconResourceUpdater
+public static partial class IconResourceUpdater
 {
     private const uint RtIcon = 3;
     private const uint RtGroupIcon = 14;
@@ -100,20 +100,25 @@ public static class IconResourceUpdater
 
     private static IntPtr MakeIntResource(uint value) => new((int)value);
 
-    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern IntPtr BeginUpdateResource(string pFileName, bool bDeleteExistingResources);
+    [LibraryImport("kernel32.dll", EntryPoint = "BeginUpdateResourceW", SetLastError = true,
+        StringMarshalling = StringMarshalling.Utf16)]
+    private static partial IntPtr BeginUpdateResource(string pFileName,
+        [MarshalAs(UnmanagedType.Bool)] bool bDeleteExistingResources);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool UpdateResource(
+    [LibraryImport("kernel32.dll", EntryPoint = "UpdateResourceW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool UpdateResource(
         IntPtr hUpdate,
         IntPtr lpType,
         IntPtr lpName,
         ushort wLanguage,
-        byte[] lpData,
+        [In, MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 5)] byte[] lpData,
         int cbData);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern bool EndUpdateResource(IntPtr hUpdate, bool fDiscard);
+    [LibraryImport("kernel32.dll", EntryPoint = "EndUpdateResourceW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool EndUpdateResource(IntPtr hUpdate,
+        [MarshalAs(UnmanagedType.Bool)] bool fDiscard);
 
     private sealed record IconEntry(
         byte Width,

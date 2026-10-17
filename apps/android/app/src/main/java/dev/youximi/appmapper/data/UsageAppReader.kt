@@ -35,9 +35,7 @@ class UsageAppReader(private val context: Context) {
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             when (event.eventType) {
-                UsageEvents.Event.ACTIVITY_RESUMED,
-                UsageEvents.Event.MOVE_TO_FOREGROUND,
-                -> currentPackage = event.packageName
+                UsageEvents.Event.ACTIVITY_RESUMED -> currentPackage = event.packageName
             }
         }
 

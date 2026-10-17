@@ -2,17 +2,18 @@
 
 AppMapper 自有代码采用 GPL-3.0-only，完整条款见 [LICENSE](./LICENSE)。下列第三方组件保留各自的许可证与版权声明。本文件与 LICENSE 一同内置于 Windows 程序及 Android APK，两端用户均可在「设置 → 开源许可」中离线查看。
 
-版本清单依据 2026-09-29 的 Windows NuGet 运行时还原结果及 Android releaseRuntimeClasspath 整理。升级依赖或改变构建配置时应重新核对。
+Windows 版本清单依据 2026-10-16 的 .NET 11 RC2、win-x64 框架依赖发布还原结果整理；Android 清单依据 2026-10-17 的 releaseRuntimeClasspath。升级依赖或改变构建配置时应重新核对。
 
 ## Windows 运行时组件
 
 | NuGet 包 | 版本 | 许可 | 上游 |
 | --- | --- | --- | --- |
 | WPF-UI、WPF-UI.Tray、WPF-UI.Abstractions | 4.3.0 | MIT | [WPF UI](https://github.com/lepoco/wpfui/tree/153baadeaf475875a81a4605881ca5c2dbe53972) |
-| QRCoder | 1.6.0 | MIT | [QRCoder](https://github.com/Shane32/QRCoder/tree/bd980577640c47f8bb881cf24c8443415a579d36) |
-| System.Drawing.Common、Microsoft.Win32.SystemEvents | 10.0.7 | MIT | [.NET Runtime](https://github.com/dotnet/runtime/tree/v10.0.7) |
+| QRCoder | 1.8.1 | MIT | [QRCoder](https://github.com/Shane32/QRCoder/tree/d050cc7c0bc986f14cfedf24b947e0ec5c1a7736) |
 
-三个 WPF UI 包中的 LICENSE.md 和 ThirdPartyNotices.txt 内容相同，以下各保留一次。.NET 两个包分别附带的第三方声明也在下文原文保留。
+三个 WPF UI 包中的 LICENSE.md 和 ThirdPartyNotices.txt 内容相同，以下各保留一次。System.Drawing.Common 和 Microsoft.Win32.SystemEvents 由用户安装的 .NET Desktop Runtime 提供，已从 NuGet 依赖图裁剪，不作为独立包随 Windows ZIP 分发。
+
+`AppMapper.exe` 使用 .NET apphost 原生启动器，来自 [Microsoft.NETCore.App.Host.win-x64 11.0.0-rc.2.26504.105](https://www.nuget.org/packages/Microsoft.NETCore.App.Host.win-x64/11.0.0-rc.2.26504.105)。该启动器随 Windows ZIP 分发；其 MIT 许可和官方包附带的完整第三方告知在下文保留，可在「完整第三方声明」中查看。
 
 ### WPF UI MIT 许可（上述三个包）
 
@@ -45,7 +46,8 @@ SOFTWARE.
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2013-2018 Raffael Herrmann
+Copyright (c) 2013-2025 Raffael Herrmann
+Copyright (c) 2024-2025 Shane Krueger
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -65,7 +67,9 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### .NET Runtime MIT 许可（上述两个包）
+### .NET apphost MIT 许可
+
+来源：上述 .NET 11.0.0-rc.2.26504.105 apphost 包中的 `LICENSE.TXT`。
 
 ```text
 The MIT License (MIT)
@@ -95,42 +99,54 @@ SOFTWARE.
 
 ## Android 发行版依赖
 
-下表列出当前已解析的 57 个 release 运行时二进制构件，按 Maven group 和版本合并展示。Compose BOM 和仅调试使用的 ui-tooling 没有计入。列出的组件采用 Apache-2.0；许可证全文在表后保留一次。
+下表列出当前已解析的 67 个 release 运行时构件，按 Maven group 和版本合并展示；同一坐标的多个变体只计一次。Compose BOM、仅调试使用的 ui-tooling 及测试依赖没有计入。Core/Activity/Lifecycle 等上游仍可能传递引用已合并能力的空兼容构件；表内保留实际解析结果。列出的组件采用 Apache-2.0；许可证全文在表后保留一次。
 
 | Maven group | artifact（同组已解析构件） | 版本 | 许可 |
 | --- | --- | --- | --- |
-| `androidx.activity` | `activity`, `activity-compose`, `activity-ktx` | `1.9.3` | Apache-2.0 |
-| `androidx.compose.material3` | `material3-android` | `1.3.0` | Apache-2.0 |
-| `androidx.compose.ui` | `ui-util-android`, `ui-unit-android`, `ui-graphics-android`, `ui-geometry-android`, `ui-text-android`, `ui-tooling-preview-android`, `ui-android` | `1.7.4` | Apache-2.0 |
-| `androidx.compose.foundation` | `foundation-layout-android`, `foundation-android` | `1.7.4` | Apache-2.0 |
-| `androidx.compose.material` | `material-ripple-android`, `material-icons-core-android` | `1.7.4` | Apache-2.0 |
-| `androidx.compose.animation` | `animation-core-android`, `animation-android` | `1.7.4` | Apache-2.0 |
-| `androidx.core` | `core`, `core-ktx` | `1.13.1` | Apache-2.0 |
-| `androidx.lifecycle` | `lifecycle-common-jvm`, `lifecycle-livedata-core`, `lifecycle-runtime-android`, `lifecycle-viewmodel-android`, `lifecycle-viewmodel-ktx`, `lifecycle-runtime-compose-android`, `lifecycle-service`, `lifecycle-runtime-ktx-android`, `lifecycle-viewmodel-savedstate`, `lifecycle-process`, `lifecycle-common-java8` | `2.8.7` | Apache-2.0 |
-| `androidx.compose.runtime` | `runtime-saveable-android`, `runtime-android` | `1.7.4` | Apache-2.0 |
-| `org.jetbrains.kotlinx` | `kotlinx-coroutines-core-jvm`, `kotlinx-coroutines-android` | `1.9.0` | Apache-2.0 |
-| `androidx.savedstate` | `savedstate`, `savedstate-ktx` | `1.2.1` | Apache-2.0 |
+| `androidx.activity` | `activity`, `activity-compose`, `activity-ktx` | `1.13.0` | Apache-2.0 |
+| `androidx.annotation` | `annotation-jvm` | `1.10.0` | Apache-2.0 |
 | `androidx.annotation` | `annotation-experimental` | `1.4.1` | Apache-2.0 |
-| `androidx.versionedparcelable` | `versionedparcelable` | `1.1.1` | Apache-2.0 |
 | `androidx.arch.core` | `core-common`, `core-runtime` | `2.2.0` | Apache-2.0 |
-| `androidx.collection` | `collection-jvm`, `collection-ktx` | `1.4.4` | Apache-2.0 |
-| `androidx.annotation` | `annotation-jvm` | `1.8.1` | Apache-2.0 |
-| `org.jetbrains.kotlin` | `kotlin-stdlib` | `2.2.10` | Apache-2.0 |
+| `androidx.autofill` | `autofill` | `1.0.0` | Apache-2.0 |
+| `androidx.collection` | `collection-jvm`, `collection-ktx` | `1.6.0` | Apache-2.0 |
+| `androidx.compose.animation` | `animation-android`, `animation-core-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.foundation` | `foundation-android`, `foundation-layout-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.material` | `material-ripple-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.material3` | `material3-android`, `material3-ripple-android` | `1.5.0-beta01` | Apache-2.0 |
+| `androidx.compose.runtime` | `runtime-android`, `runtime-annotation-android`, `runtime-retain-android`, `runtime-saveable-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.compose.ui` | `ui-android`, `ui-geometry-android`, `ui-graphics-android`, `ui-text-android`, `ui-tooling-preview-android`, `ui-unit-android`, `ui-util-android` | `1.13.0-beta01` | Apache-2.0 |
+| `androidx.concurrent` | `concurrent-futures` | `1.1.0` | Apache-2.0 |
+| `androidx.core` | `core-viewtree` | `1.0.0` | Apache-2.0 |
+| `androidx.core` | `core`, `core-ktx` | `1.19.1` | Apache-2.0 |
+| `androidx.customview` | `customview-poolingcontainer` | `1.0.0` | Apache-2.0 |
+| `androidx.emoji2` | `emoji2` | `1.7.0` | Apache-2.0 |
+| `androidx.graphics` | `graphics-shapes-android` | `1.0.1` | Apache-2.0 |
+| `androidx.graphics` | `graphics-path` | `1.1.0` | Apache-2.0 |
+| `androidx.interpolator` | `interpolator` | `1.0.0` | Apache-2.0 |
+| `androidx.lifecycle` | `lifecycle-common-java8`, `lifecycle-common-jvm`, `lifecycle-livedata-core`, `lifecycle-process`, `lifecycle-runtime-android`, `lifecycle-runtime-compose-android`, `lifecycle-runtime-ktx-android`, `lifecycle-viewmodel-android`, `lifecycle-viewmodel-ktx`, `lifecycle-viewmodel-savedstate-android` | `2.11.0` | Apache-2.0 |
+| `androidx.navigationevent` | `navigationevent-android`, `navigationevent-compose-android` | `1.1.0` | Apache-2.0 |
+| `androidx.profileinstaller` | `profileinstaller` | `1.4.0` | Apache-2.0 |
+| `androidx.savedstate` | `savedstate-android`, `savedstate-compose-android`, `savedstate-ktx` | `1.5.0` | Apache-2.0 |
+| `androidx.startup` | `startup-runtime` | `1.1.1` | Apache-2.0 |
+| `androidx.tracing` | `tracing` | `1.2.0` | Apache-2.0 |
+| `androidx.versionedparcelable` | `versionedparcelable` | `1.1.1` | Apache-2.0 |
+| `androidx.window` | `window`, `window-core-android` | `1.5.0` | Apache-2.0 |
+| `com.google.guava` | `listenablefuture` | `1.0` | Apache-2.0 |
+| `com.google.zxing` | `core` | `3.5.4` | Apache-2.0 |
 | `com.journeyapps` | `zxing-android-embedded` | `4.3.0` | Apache-2.0 |
 | `org.jetbrains` | `annotations` | `23.0.0` | Apache-2.0 |
-| `com.google.zxing` | `core` | `3.4.1` | Apache-2.0 |
-| `androidx.autofill` | `autofill` | `1.0.0` | Apache-2.0 |
-| `androidx.emoji2` | `emoji2` | `1.3.0` | Apache-2.0 |
-| `androidx.graphics` | `graphics-path` | `1.0.1` | Apache-2.0 |
-| `androidx.customview` | `customview-poolingcontainer` | `1.0.0` | Apache-2.0 |
-| `androidx.interpolator` | `interpolator` | `1.0.0` | Apache-2.0 |
-| `androidx.profileinstaller` | `profileinstaller` | `1.3.1` | Apache-2.0 |
-| `androidx.startup` | `startup-runtime` | `1.1.1` | Apache-2.0 |
-| `androidx.tracing` | `tracing` | `1.0.0` | Apache-2.0 |
-| `androidx.concurrent` | `concurrent-futures` | `1.1.0` | Apache-2.0 |
-| `com.google.guava` | `listenablefuture` | `1.0` | Apache-2.0 |
+| `org.jetbrains.kotlin` | `kotlin-stdlib` | `2.5.0-Beta1` | Apache-2.0 |
+| `org.jetbrains.kotlinx` | `kotlinx-coroutines-android`, `kotlinx-coroutines-core-jvm` | `1.11.0` | Apache-2.0 |
+| `org.jetbrains.kotlinx` | `kotlinx-serialization-core-jvm` | `1.7.3` | Apache-2.0 |
+| `org.jspecify` | `jspecify` | `1.0.0` | Apache-2.0 |
 
-许可来源：[AndroidX](https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt)、[Kotlin](https://github.com/JetBrains/kotlin/blob/v2.2.10/license/LICENSE.txt)、[kotlinx.coroutines 1.9.0](https://github.com/Kotlin/kotlinx.coroutines/blob/1.9.0/LICENSE.txt)、[JetBrains annotations](https://github.com/JetBrains/java-annotations)、[JourneyApps ZXing 4.3.0](https://github.com/journeyapps/zxing-android-embedded/blob/v4.3.0/COPYING)、[ZXing Core 3.4.1](https://github.com/zxing/zxing/blob/zxing-3.4.1/LICENSE)、[Guava ListenableFuture](https://github.com/google/guava/blob/master/LICENSE)。
+许可来源：[AndroidX](https://github.com/androidx/androidx/blob/androidx-main/LICENSE.txt)、[Kotlin 2.5.0-Beta1](https://github.com/JetBrains/kotlin/blob/v2.5.0-Beta1/license/LICENSE.txt)、[kotlinx.coroutines 1.11.0](https://github.com/Kotlin/kotlinx.coroutines/blob/1.11.0/LICENSE.txt)、[kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization/blob/v1.7.3/LICENSE.txt)、[JetBrains annotations](https://github.com/JetBrains/java-annotations)、[JourneyApps ZXing 4.3.0](https://github.com/journeyapps/zxing-android-embedded/blob/v4.3.0/COPYING)、[ZXing Core 3.5.4](https://github.com/zxing/zxing/blob/zxing-3.5.4/LICENSE)、[Guava ListenableFuture](https://github.com/google/guava/blob/master/LICENSE)、[JSpecify](https://github.com/jspecify/jspecify/blob/v1.0.0/LICENSE)。
+
+### Material Symbols 矢量图标
+
+Android 客户端使用 Google Material Symbols 的 13 个公开 Android XML 矢量资源，来自 [google/material-design-icons（提交 49d4db35df87）](https://github.com/google/material-design-icons/tree/49d4db35df873165d6bd6ba09b063c7dafbac2f4/symbols/android)。来源文件为 `materialsymbolsoutlined` 下的 `add`、`arrow_back`、`check_circle`、`chevron_right`、`home`（含填充变体）、`info`、`list`、`more_vert`、`refresh`、`settings`（含填充变体）和 `warning` 的 24px 版本。
+
+图标由 Google 提供，遵循 [Apache-2.0](https://github.com/google/material-design-icons/blob/49d4db35df873165d6bd6ba09b063c7dafbac2f4/LICENSE)；完整条款同下。项目去除了 XML 主题 tint，由 Compose `Icon` 统一着色；保留官方资源的 RTL 自动镜像设置。
 
 ### Apache License, Version 2.0（Android 组件及 Gradle Wrapper）
 
@@ -474,54 +490,9 @@ You may use the Segoe and icon fonts, or glyphs included in this file (“Softwa
 END OF microsoft/segoe-fluent-icons-font NOTICES AND INFORMATION
 ```
 
-### System.Drawing.Common 10.0.7 — THIRD-PARTY-NOTICES.TXT
+### .NET apphost 11.0.0-rc.2.26504.105 — THIRD-PARTY-NOTICES.TXT
 
-```text
-.NET Core uses third-party libraries or other resources that may be
-distributed under licenses different than the .NET Core software.
-
-In the event that we accidentally failed to list a required notice, please
-bring it to our attention. Post an issue or email us:
-
-           dotnet@microsoft.com
-
-The attached notices are provided for information only.
-
-License notice for Ookie.Dialogs
---------------------------------
-
-http://www.ookii.org/software/dialogs/
-
-Copyright © Sven Groot (Ookii.org) 2009
-All rights reserved.
-
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-1) Redistributions of source code must retain the above copyright notice,
-   this list of conditions and the following disclaimer.
-2) Redistributions in binary form must reproduce the above copyright notice,
-   this list of conditions and the following disclaimer in the documentation
-   and/or other materials provided with the distribution.
-3) Neither the name of the ORGANIZATION nor the names of its contributors
-   may be used to endorse or promote products derived from this software
-   without specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
-THE POSSIBILITY OF SUCH DAMAGE.
-```
-
-### Microsoft.Win32.SystemEvents 10.0.7 — THIRD-PARTY-NOTICES.TXT
+以下为上述官方 apphost 包所附文件的完整原文。
 
 ```text
 .NET Runtime uses third-party libraries or other resources that may be
@@ -538,7 +509,7 @@ License notice for ASP.NET
 -------------------------------
 
 Copyright (c) .NET Foundation. All rights reserved.
-Licensed under the Apache License, Version 2.0.
+Licensed under the MIT License (MIT)
 
 Available at
 https://github.com/dotnet/aspnetcore/blob/main/LICENSE.txt
@@ -627,33 +598,6 @@ http://www.apache.org/licenses/
 
 Copyright The OpenTelemetry Authors
 
-
-License notice for LinuxTracepoints
------------------------------------
-
-https://github.com/microsoft/LinuxTracepoints/blob/main/LICENSE
-
-Copyright (c) Microsoft Corporation.
-
-MIT License
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE
 
 License notice for Mono
 -------------------------------
@@ -1720,6 +1664,41 @@ WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWIS
 ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
+License notice for zstd
+-----------------------
+
+https://github.com/facebook/zstd/blob/dev/LICENSE
+
+BSD License
+
+For Zstandard software
+Copyright (c) Meta Platforms, Inc. and affiliates. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+ * Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+ * Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+ * Neither the name Facebook, nor Meta, nor the names of its contributors may
+   be used to endorse or promote products derived from this software without
+   specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 License notice for fmtlib/fmt
 -------------------------------
 
@@ -1942,4 +1921,277 @@ NIST-developed software is expressly provided "AS IS." NIST MAKES NO WARRANTY OF
 
 You are solely responsible for determining the appropriateness of using and distributing the software and you assume all risks associated with its use, including but not limited to the risks and costs of program errors, compliance with applicable laws, damage to or loss of data, programs or equipment, and the unavailability or interruption of operation. This software is not intended to be used in any situation where a failure could cause risk of injury or damage to property. The software developed by NIST employees is not subject to copyright protection within the United States.
 
+License notice for ANTLR 4
+-------------------------------
+
+https://github.com/antlr/antlr4
+
+Copyright (c) 2012-2022 The ANTLR Project. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. Neither name of copyright holders nor the names of its contributors
+   may be used to endorse or promote products derived from this software
+   without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License for Project Wycheproof
+--------------------------------------------------------------------
+Available at https://github.com/C2SP/wycheproof/blob/2fb7240f471b70bb3aa5cc9b0718cdff01632508/LICENSE
+
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
+
+   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+   1. Definitions.
+
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+
+   2. Grant of Copyright License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      copyright license to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.
+
+   3. Grant of Patent License. Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted. If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.
+
+   4. Redistribution. You may reproduce and distribute copies of the
+      Work or Derivative Works thereof in any medium, with or without
+      modifications, and in Source or Object form, provided that You
+      meet the following conditions:
+
+      (a) You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+
+      (b) You must cause any modified files to carry prominent notices
+          stating that You changed the files; and
+
+      (c) You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+
+      (d) If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.
+
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+
+   5. Submission of Contributions. Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+
+   6. Trademarks. This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+
+   7. Disclaimer of Warranty. Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.
+
+   8. Limitation of Liability. In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.
+
+   9. Accepting Warranty or Additional Liability. While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.
+
+   END OF TERMS AND CONDITIONS
+
+   APPENDIX: How to apply the Apache License to your work.
+
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+License notice for Intel Decimal Floating-Point Math Library
+-------------------------------
+
+https://www.intel.com/content/www/us/en/developer/articles/tool/intel-decimal-floating-point-math-library.html
+
+Copyright (c) 2007-2025, Intel Corp.
+
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that the following conditions are met:
+
+   * Redistributions of source code must retain the above copyright notice, this
+     list of conditions and the following disclaimer.
+   * Redistributions in binary form must reproduce the above copyright notice,
+     this list of conditions and the following disclaimer in the documentation
+     and/or other materials provided with the distribution.
+   * Neither the name of Intel Corporation nor the names of its contributors
+     may be used to endorse or promote products derived from this software
+     without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.
+IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
